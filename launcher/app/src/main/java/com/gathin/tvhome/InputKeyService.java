@@ -81,16 +81,6 @@ public class InputKeyService extends AccessibilityService {
                 return true;
             } catch (Exception ignored) {
             }
-            try {
-                startActivity(new Intent(ACTION_VIEW_INPUTS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-                return true;
-            } catch (Exception ignored) {
-            }
-            try {
-                startActivity(new Intent("android.media.tv.action.VIEW_INPUTS").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-                return true;
-            } catch (Exception ignored) {
-            }
             String[] comps = {
                     "com.amazon.tv.inputpreference.service/com.amazon.tv.inputpreference.player.InputChooserActivity",
                     "com.amazon.tv.inputpreference.service/com.amazon.tv.inputpreference.player.InputTabActivity",
@@ -106,6 +96,15 @@ public class InputKeyService extends AccessibilityService {
                         return true;
                     } catch (Exception ignored) {
                     }
+                }
+            }
+            boolean isFireTv = getPackageManager().getLaunchIntentForPackage("com.amazon.tv.launcher") != null
+                    || getPackageManager().getLaunchIntentForPackage("com.amazon.firehomestarter") != null;
+            if (!isFireTv) {
+                try {
+                    startActivity(new Intent(ACTION_VIEW_INPUTS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                    return true;
+                } catch (Exception ignored) {
                 }
             }
         }

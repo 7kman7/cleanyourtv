@@ -106,12 +106,74 @@ final class SystemSettings {
         return false;
     }
 
+    /** Returns the launch intent for PhairPlay if installed, or null. */
+    static Intent phairPlayIntent(Context context) {
+        PackageManager pm = context.getPackageManager();
+        String[] packages = {
+                "com.phairplay.firetv",
+                "com.phairplay.googletv",
+                "com.phairplay",
+                "com.github.phairplay",
+                "io.github.phairplay",
+                "com.phairplay.app"
+        };
+        for (String p : packages) {
+            Intent launch = pm.getLaunchIntentForPackage(p);
+            if (launch != null) return launch;
+        }
+        Intent query = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER);
+        for (ResolveInfo ri : pm.queryIntentActivities(query, 0)) {
+            if (ri.activityInfo != null && ri.activityInfo.packageName.toLowerCase(java.util.Locale.ROOT).contains("phairplay")) {
+                Intent launch = pm.getLaunchIntentForPackage(ri.activityInfo.packageName);
+                if (launch != null) return launch;
+                return new Intent().setComponent(new ComponentName(ri.activityInfo.packageName, ri.activityInfo.name));
+            }
+        }
+        Intent queryNormal = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER);
+        for (ResolveInfo ri : pm.queryIntentActivities(queryNormal, 0)) {
+            if (ri.activityInfo != null && ri.activityInfo.packageName.toLowerCase(java.util.Locale.ROOT).contains("phairplay")) {
+                Intent launch = pm.getLaunchIntentForPackage(ri.activityInfo.packageName);
+                if (launch != null) return launch;
+                return new Intent().setComponent(new ComponentName(ri.activityInfo.packageName, ri.activityInfo.name));
+            }
+        }
+        try {
+            for (android.content.pm.PackageInfo pi : pm.getInstalledPackages(0)) {
+                if (pi.packageName.toLowerCase(java.util.Locale.ROOT).contains("phairplay")) {
+                    Intent launch = pm.getLaunchIntentForPackage(pi.packageName);
+                    if (launch != null) return launch;
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+
     /**
-     * Ensures Fire TV native Apple AirPlay receiver and Amazon Cast sink are awake
-     * and running in the background so Apple devices can discover the TV over mDNS/Bonjour immediately.
+     * Ensures AirPlay receiver services (PhairPlay, native Apple AirPlay, Amazon Cast sink)
+     * are awake and running in the background.
      */
     static void ensureNativeAirPlayRunning(Context context) {
         PackageManager pm = context.getPackageManager();
+        Intent phairplay = phairPlayIntent(context);
+        if (phairplay != null) {
+            String phairPkg = phairplay.getComponent() != null ? phairplay.getComponent().getPackageName()
+                    : (phairplay.getPackage() != null ? phairplay.getPackage() : "com.phairplay.firetv");
+            try {
+                android.content.pm.PackageInfo pi = pm.getPackageInfo(phairPkg, PackageManager.GET_SERVICES);
+                if (pi.services != null) {
+                    for (android.content.pm.ServiceInfo si : pi.services) {
+                        if (si.name != null) {
+                            try {
+                                context.startService(new Intent().setComponent(new ComponentName(phairPkg, si.name)));
+                            } catch (Exception ignored) {
+                            }
+                        }
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+        }
         String[] airplayPackages = {
                 "com.apple.airplay.amazon.airplay",
                 "com.amazon.cast.sink"
@@ -160,10 +222,11 @@ final class SystemSettings {
     };
 
     /**
-     * Checks whether native Fire TV AirPlay, Amazon Cast Sink, or Cast Settings
+     * Checks whether PhairPlay, native Fire TV AirPlay, Amazon Cast Sink, or Cast Settings
      * is available on the TV.
      */
     static boolean isAirPlayAvailable(Context context) {
+        if (phairPlayIntent(context) != null) return true;
         PackageManager pm = context.getPackageManager();
         try {
             pm.getPackageInfo("com.apple.airplay.amazon.airplay", 0);
@@ -180,10 +243,20 @@ final class SystemSettings {
     }
 
     /**
-     * Reliably launches native Fire TV AirPlay / Display & Sounds settings.
-     * Never redirects to PhairPlay.
+     * Reliably launches PhairPlay or native Fire TV AirPlay / Display settings.
      */
     static boolean launchAirPlay(Context context) {
+        // Priority 1: PhairPlay
+        Intent phairplay = phairPlayIntent(context);
+        if (phairplay != null) {
+            try {
+                HomeKeyService.allowStockLauncherUntil = android.os.SystemClock.uptimeMillis() + 15000;
+                context.startActivity(phairplay.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                return true;
+            } catch (Exception ignored) {
+            }
+        }
+
         PackageManager pm = context.getPackageManager();
         List<Intent> intents = new ArrayList<>();
 

@@ -2904,46 +2904,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 // fall through to the standard way
             }
         }
-        Uri uri = null;
-        try {
-            uri = TvContract.buildChannelUriForPassthroughInput(resolvedId);
-        } catch (Exception ignored) {
-        }
-        if (uri != null) {
-            Intent view = (inputUriScheme.isEmpty()
-                    ? new Intent(Intent.ACTION_VIEW).setDataAndType(uri, "vnd.android.cursor.item/channel")
-                    : new Intent(Intent.ACTION_VIEW, uri.buildUpon().scheme(inputUriScheme).build()))
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            if (!liveTvPkg.isEmpty()) {
-                try {
-                    startActivity(new Intent(view).setPackage(liveTvPkg));
-                    return;
-                } catch (ActivityNotFoundException | SecurityException ignored) {
-                }
-            }
-            String[] tvPkgs = {"com.amazon.tv.livetv", "com.google.android.tv", "com.android.tv", "com.amazon.tv.inputpreference.service"};
-            for (String pkg : tvPkgs) {
-                try {
-                    startActivity(new Intent(view).setPackage(pkg));
-                    return;
-                } catch (Exception ignored) {
-                }
-            }
-            try {
-                startActivity(view);
-                return;
-            } catch (ActivityNotFoundException | SecurityException ignored) {
-            }
-            try {
-                startActivity(new Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-                return;
-            } catch (Exception ignored) {
-            }
-        }
+        // Fire TV specific input intents
         String[] amazonInputIntents = {
                 "com.amazon.tv.action.SWITCH_INPUT",
-                "android.media.tv.action.VIEW_INPUTS",
-                "com.android.tv.action.VIEW_INPUTS",
                 "amazon.intent.action.INPUTS_SETTINGS"
         };
         for (String act : amazonInputIntents) {
@@ -2951,6 +2914,35 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 startActivity(new Intent(act).putExtra("input_id", resolvedId).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
                 return;
             } catch (Exception ignored) {
+            }
+        }
+
+        boolean isFireTv = getPackageManager().getLaunchIntentForPackage("com.amazon.tv.launcher") != null
+                || getPackageManager().getLaunchIntentForPackage("com.amazon.firehomestarter") != null;
+        if (!isFireTv) {
+            Uri uri = null;
+            try {
+                uri = TvContract.buildChannelUriForPassthroughInput(resolvedId);
+            } catch (Exception ignored) {
+            }
+            if (uri != null) {
+                Intent view = (inputUriScheme.isEmpty()
+                        ? new Intent(Intent.ACTION_VIEW).setDataAndType(uri, "vnd.android.cursor.item/channel")
+                        : new Intent(Intent.ACTION_VIEW, uri.buildUpon().scheme(inputUriScheme).build()))
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                String[] nonAmazonTvPkgs = {"com.google.android.tv", "com.android.tv"};
+                for (String pkg : nonAmazonTvPkgs) {
+                    try {
+                        startActivity(new Intent(view).setPackage(pkg));
+                        return;
+                    } catch (Exception ignored) {
+                    }
+                }
+                try {
+                    startActivity(view);
+                    return;
+                } catch (Exception ignored) {
+                }
             }
         }
         openFireTvInputs();
@@ -3103,29 +3095,6 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (rows.getChildCount() == 0 && !sourcePanelService.isEmpty()) {
             addInputRow(rows, popup, R.drawable.ic_input, getString(R.string.inputs), -1, this::openSourcePanel);
         }
-        Intent liveTv = liveTvIntent();
-        if (liveTv != null && tunerId != null) {
-            // Tune that input only when the Live TV package itself handles the URI.
-            // The unrestricted input player also resolves it (that is how HDMI opens), but on the
-            // AIWA AI PONT SA that player stays black, and the Live TV package does not handle the
-            // URI at all, which used to toast "Not available on this TV". Keep the leanback activity
-            // then: it is the same path as the Live TV tile. Do not drop the package restriction.
-            // An explicit tuner uses its channel collection (e.g. DVB-S rather than DVB-T/C).
-            // Keep the legacy passthrough route for automatic selection: some OEM players need it.
-            // If the configured input is absent, tunerId stays null and the app opens normally.
-            boolean configured = !liveTvInputId.isEmpty();
-            Intent tuned = new Intent(Intent.ACTION_VIEW)
-                    .setDataAndType(configured ? TvContract.buildChannelsUriForInput(tunerId)
-                                    : TvContract.buildChannelUriForPassthroughInput(tunerId),
-                            configured ? TvContract.Channels.CONTENT_TYPE : TvContract.Channels.CONTENT_ITEM_TYPE)
-                    .setPackage(liveTvPkg);
-            if (tuned.resolveActivity(getPackageManager()) != null) liveTv = tuned;
-        }
-        if (liveTv != null) {
-            if (rows.getChildCount() > 0) addSeparator(rows);
-            final Intent liveTvIntent = liveTv;
-            addInputRow(rows, popup, R.drawable.ic_livetv, getString(R.string.live_tv), -1, () -> open(liveTvIntent));
-        }
         if (rows.getChildCount() > 0) {
             addSeparator(rows);
             addInputRow(rows, popup, R.drawable.ic_input, getString(R.string.inputs), -1, () -> {
@@ -3177,14 +3146,21 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
         String[] actions = {
                 "com.amazon.tv.action.INPUT_CHOOSER",
-                "android.media.tv.action.VIEW_INPUTS",
-                "com.android.tv.action.VIEW_INPUTS",
                 "amazon.intent.action.INPUTS_SETTINGS",
                 "com.amazon.tv.action.SWITCH_INPUT"
         };
         for (String act : actions) {
             try {
                 startActivity(new Intent(act).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                return;
+            } catch (Exception ignored) {
+            }
+        }
+        boolean isFireTv = getPackageManager().getLaunchIntentForPackage("com.amazon.tv.launcher") != null
+                || getPackageManager().getLaunchIntentForPackage("com.amazon.firehomestarter") != null;
+        if (!isFireTv) {
+            try {
+                startActivity(new Intent("android.media.tv.action.VIEW_INPUTS").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
                 return;
             } catch (Exception ignored) {
             }

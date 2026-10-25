@@ -379,7 +379,9 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             boolean hasAirPlay = false;
             for (Entry e : fresh) {
                 if ("com.apple.airplay.amazon.airplay".equals(e.pkg)
-                        || "AirPlay".equalsIgnoreCase(e.label)) {
+                        || (e.pkg != null && e.pkg.toLowerCase().contains("phairplay"))
+                        || "AirPlay".equalsIgnoreCase(e.label)
+                        || (e.label != null && e.label.toLowerCase().contains("phairplay"))) {
                     hasAirPlay = true;
                     break;
                 }
@@ -609,7 +611,9 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         }
         if (e.kind == Entry.AIRPLAY
                 || "com.apple.airplay.amazon.airplay".equals(e.pkg)
-                || "AirPlay".equalsIgnoreCase(e.label)) {
+                || (e.pkg != null && e.pkg.toLowerCase().contains("phairplay"))
+                || "AirPlay".equalsIgnoreCase(e.label)
+                || (e.label != null && e.label.toLowerCase().contains("phairplay"))) {
             if (!SystemSettings.launchAirPlay(ctx)) {
                 Toast.makeText(ctx, ctx.getString(R.string.cant_open, e.label), Toast.LENGTH_SHORT).show();
             }
