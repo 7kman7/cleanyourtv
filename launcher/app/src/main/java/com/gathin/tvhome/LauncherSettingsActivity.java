@@ -249,11 +249,6 @@ public final class LauncherSettingsActivity extends Activity {
             changed();
             refresh();
         });
-            View r = findViewById(R.id.settingsRoot);
-            if (r != null) r.setBackgroundColor(current.backgroundColor);
-            changed();
-            refresh();
-        });
         findViewById(R.id.defaultHomeChoice).setOnClickListener(v -> {
             Intent homeSettings = new Intent(Settings.ACTION_HOME_SETTINGS);
             if (getPackageManager().resolveActivity(homeSettings, 0) != null) {
