@@ -223,6 +223,14 @@ public class HomeKeyService extends AccessibilityService {
                 || (!stockHome.isEmpty() && stockHome.contains(p));
 
         if (isStock) {
+            CharSequence cls = event.getClassName();
+            if (cls != null) {
+                String c = cls.toString().toLowerCase();
+                if (c.contains("settings") || c.contains("preferences") || c.contains("airplay")
+                        || c.contains("cast") || c.contains("mirror")) {
+                    return;
+                }
+            }
             if (SystemClock.uptimeMillis() < allowStockLauncherUntil) {
                 return;
             }

@@ -17,9 +17,12 @@ final class SystemSettings {
         PackageManager pm = context.getPackageManager();
         Intent standard = new Intent(action);
         ResolveInfo resolved = pm.resolveActivity(standard, PackageManager.MATCH_DEFAULT_ONLY);
-        // Fire OS resolves the standard actions to a CTS compliance stub that opens nothing;
+        // Fire OS resolves the standard actions to a CTS compliance stub or dummy handler that opens nothing;
         // treat it as missing so the vendor fallback runs.
-        if (resolved != null && !resolved.activityInfo.name.contains("CTSDummy")) return standard;
+        boolean isDummy = resolved != null && (resolved.activityInfo.name.contains("Dummy")
+                || resolved.activityInfo.name.contains("CTS")
+                || resolved.activityInfo.packageName.equals("com.amazon.tv.launcher"));
+        if (resolved != null && !isDummy) return standard;
         Intent vendor = vendorIntent(context);
         return vendor != null ? vendor : standard;
     }

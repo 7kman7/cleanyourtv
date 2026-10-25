@@ -3165,9 +3165,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         addSettingsMenuRow(rows, popup, R.string.reorder, this::toggleReorder);
         if (dockRow) addSettingsMenuRow(rows, popup, R.string.dock_edit, this::startDockEdit);
         if (appLibraryEnabled) addSettingsMenuRow(rows, popup, R.string.app_library, this::onLibraryRequested);
-        addSettingsMenuRow(rows, popup, R.string.settings, () -> open(systemIntent(Settings.ACTION_SETTINGS)));
+        addSettingsMenuRow(rows, popup, R.string.settings, () -> {
+            HomeKeyService.allowStockLauncherUntil = android.os.SystemClock.uptimeMillis() + 60000;
+            open(systemIntent(Settings.ACTION_SETTINGS));
+        });
         if (SystemSettings.vendorIntent(this) != null) {
             addSettingsMenuRow(rows, popup, R.string.native_settings, () -> {
+                HomeKeyService.allowStockLauncherUntil = android.os.SystemClock.uptimeMillis() + 60000;
                 Intent vendor = SystemSettings.vendorIntent(this);
                 if (vendor != null) open(vendor);
             });
