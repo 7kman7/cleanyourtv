@@ -542,7 +542,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 return key == KeyEvent.KEYCODE_DPAD_UP || key == KeyEvent.KEYCODE_DPAD_DOWN
                         || key == KeyEvent.KEYCODE_DPAD_LEFT || key == KeyEvent.KEYCODE_DPAD_RIGHT;
             });
-            return new RecyclerView.ViewHolder(row) { };
+            return new SimpleViewHolder(row);
         }
         if (viewType == VIEW_TYPE_SECTION_HEADER) {
             float density = ctx.getResources().getDisplayMetrics().density;
@@ -555,7 +555,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             header.setAllCaps(true);
             header.setFocusable(false);
             header.setFocusableInTouchMode(false);
-            return new RecyclerView.ViewHolder(header) { };
+            return new SimpleViewHolder(header);
         }
         if (viewType == VIEW_TYPE_RECENT_SHELF) {
             float density = ctx.getResources().getDisplayMetrics().density;
@@ -593,7 +593,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             scroller.addView(container);
             shelfLayout.addView(scroller);
 
-            return new RecyclerView.ViewHolder(shelfLayout) { };
+            return new SimpleViewHolder(shelfLayout);
         }
         float density = parent.getResources().getDisplayMetrics().density;
         int width = parent.getWidth() > 0 ? parent.getWidth() : parent.getMeasuredWidth();
@@ -1229,5 +1229,9 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 }
             });
         }
+    }
+
+    static final class SimpleViewHolder extends RecyclerView.ViewHolder {
+        SimpleViewHolder(View v) { super(v); }
     }
 }

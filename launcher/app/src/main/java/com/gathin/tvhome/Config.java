@@ -628,6 +628,11 @@ final class Config {
         Festival festival = json == null ? Festival.NONE : Festival.parse(string(json, "festival", ""),
                 string(json, "festival_until", ""), string(json, "greeting", ""), string(json, "accent_color", ""));
 
+        dockGlass = true;
+        dockEvenPadding = true;
+        appGlow = true;
+        glowStyle = GLOW_HORIZON;
+
         String chosenTheme = choices.getString(THEME_KEY, THEME_DEFAULT);
         if (THEME_OLED.equals(chosenTheme)) {
             background = 0xFF000000;
@@ -636,53 +641,6 @@ final class Config {
             cinematic = false;
             appGlow = false;
             skyIntensity = 0;
-        } else if (THEME_GLASS.equals(chosenTheme)) {
-            background = 0xFF090C14;
-            dockGlass = true;
-            dockEvenPadding = true;
-            cinematic = true;
-            appGlow = true;
-            advancedEffects = true;
-            glowStyle = GLOW_HORIZON;
-        } else if (THEME_AURORA.equals(chosenTheme)) {
-            background = 0xFF060D1E;
-            dockGlass = true;
-            dockEvenPadding = true;
-            appGlow = true;
-            skyIntensity = 45;
-            glowStyle = GLOW_HORIZON;
-        } else if (THEME_CYBERPUNK.equals(chosenTheme)) {
-            background = 0xFF0E0616;
-            dockGlass = true;
-            dockEvenPadding = true;
-            appGlow = true;
-            skyIntensity = 25;
-            glowStyle = "halo";
-        } else if (THEME_FOREST.equals(chosenTheme)) {
-            background = 0xFF05120A;
-            dockGlass = true;
-            dockEvenPadding = true;
-            appGlow = true;
-            glowStyle = GLOW_HORIZON;
-        } else if (THEME_SUNSET.equals(chosenTheme)) {
-            background = 0xFF140A05;
-            dockGlass = true;
-            dockEvenPadding = true;
-            appGlow = true;
-            skyIntensity = 30;
-            glowStyle = GLOW_HORIZON;
-        } else if (THEME_FRUTIGER_AERO.equals(chosenTheme)) {
-            background = 0xFF071E2E;
-            dockGlass = true;
-            dockEvenPadding = true;
-            cinematic = true;
-            appGlow = true;
-            advancedEffects = true;
-            skyIntensity = 55;
-            dockOpacity = 45;
-            glowStyle = GLOW_HORIZON;
-            headerWhite = true;
-            focusOvershoot = true;
         } else if (THEME_WINDOWS_CLASSIC.equals(chosenTheme)) {
             background = 0xFF008080;
             dockOpacity = 100;
@@ -692,31 +650,43 @@ final class Config {
             skyIntensity = 0;
             advancedEffects = false;
             dockEvenPadding = false;
+        } else if (THEME_GLASS.equals(chosenTheme)) {
+            background = 0xFF090C14;
+            cinematic = true;
+            advancedEffects = true;
+        } else if (THEME_AURORA.equals(chosenTheme)) {
+            background = 0xFF060D1E;
+            skyIntensity = 45;
+        } else if (THEME_CYBERPUNK.equals(chosenTheme)) {
+            background = 0xFF0E0616;
+            skyIntensity = 25;
+            glowStyle = "halo";
+        } else if (THEME_FOREST.equals(chosenTheme)) {
+            background = 0xFF05120A;
+        } else if (THEME_SUNSET.equals(chosenTheme)) {
+            background = 0xFF140A05;
+            skyIntensity = 30;
+        } else if (THEME_FRUTIGER_AERO.equals(chosenTheme)) {
+            background = 0xFF071E2E;
+            cinematic = true;
+            advancedEffects = true;
+            skyIntensity = 55;
+            dockOpacity = 45;
+            headerWhite = true;
+            focusOvershoot = true;
         } else if (THEME_VAPORWAVE.equals(chosenTheme)) {
             background = 0xFF180A2A;
-            dockGlass = true;
-            dockEvenPadding = true;
-            appGlow = true;
             advancedEffects = true;
             skyIntensity = 40;
             dockOpacity = 50;
             glowStyle = "halo";
         } else if (THEME_MATRIX.equals(chosenTheme)) {
             background = 0xFF020B04;
-            dockGlass = true;
-            dockEvenPadding = true;
-            appGlow = true;
             advancedEffects = true;
             skyIntensity = 25;
             dockOpacity = 80;
-            glowStyle = GLOW_HORIZON;
         } else {
-            // Default Midnight theme
             background = 0xFF090C14;
-            dockGlass = true;
-            dockEvenPadding = true;
-            appGlow = true;
-            glowStyle = GLOW_HORIZON;
         }
 
         boolean showDock = choices.getBoolean(SHOW_DOCK_KEY, true);
