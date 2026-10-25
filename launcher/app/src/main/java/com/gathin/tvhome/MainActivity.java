@@ -1189,7 +1189,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         });
     }
 
-    private static class ContinueWatchingViewHolder extends RecyclerView.ViewHolder {
+    static class ContinueWatchingViewHolder extends RecyclerView.ViewHolder {
         final View card;
         final ImageView banner;
         final ImageView icon;
