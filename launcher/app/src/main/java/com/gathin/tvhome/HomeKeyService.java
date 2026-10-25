@@ -40,6 +40,9 @@ import java.util.Set;
  */
 public class HomeKeyService extends AccessibilityService {
 
+    /** If true, the user intentionally opened the stock launcher, so don't redirect until Home is pressed. */
+    public static volatile boolean allowStockLauncher = false;
+
     /** restore_key_services was on when the config was read: this helper is noted for ServiceRepair. */
     private boolean repairRecord;
     /** Remote buttons that should open Settings (config.xml, settings_key_scancodes and settings_key_keycodes). */
@@ -171,8 +174,9 @@ public class HomeKeyService extends AccessibilityService {
         }
         if (RemoteKeys.handle(this, event, appKeys.get(event.getKeyCode()),
                 holdAppKeys.get(event.getKeyCode()))) return true;
-        if (event.getKeyCode() == KeyEvent.KEYCODE_HOME && !stockHome.isEmpty()) {
-            if (isOverrideEnabled()) {
+        if (event.getKeyCode() == KeyEvent.KEYCODE_HOME) {
+            allowStockLauncher = false;
+            if (!stockHome.isEmpty() && isOverrideEnabled()) {
                 if (event.getAction() == KeyEvent.ACTION_DOWN) {
                     openHome();
                 }
@@ -201,7 +205,7 @@ public class HomeKeyService extends AccessibilityService {
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
         // stock_home_redirect: the firmware turned the stock launcher back on and its home screen came up.
-        if (!isOverrideEnabled() || stockHome.isEmpty() || event.getEventType() != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return;
+        if (allowStockLauncher || !isOverrideEnabled() || stockHome.isEmpty() || event.getEventType() != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return;
         CharSequence pkg = event.getPackageName();
         CharSequence cls = event.getClassName();
         if (pkg != null && (pkg.equals("com.amazon.tv.launcher") || (cls != null && stockHome.contains(cls.toString())))) {

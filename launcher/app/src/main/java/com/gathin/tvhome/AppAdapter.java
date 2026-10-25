@@ -328,6 +328,28 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                     new ComponentName(ctx, HomeSettingsActivity.class), null,
                     ctx.getDrawable(R.drawable.ic_home_settings), null, 0));
         }
+        // Fire TV / Stock Launcher Tile:
+        Intent stockHomeIntent = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).setPackage("com.amazon.tv.launcher");
+        ResolveInfo stockHomeRi = pm.resolveActivity(stockHomeIntent, 0);
+        if (stockHomeRi != null && stockHomeRi.activityInfo != null) {
+            boolean hasStock = false;
+            for (Entry e : fresh) {
+                if ("com.amazon.tv.launcher".equals(e.pkg)) {
+                    hasStock = true;
+                    break;
+                }
+            }
+            if (!hasStock) {
+                Drawable stockIcon = null;
+                try {
+                    stockIcon = stockHomeRi.loadIcon(pm);
+                } catch (Exception ignored) {
+                    stockIcon = ctx.getDrawable(R.drawable.ic_home_settings);
+                }
+                ComponentName cn = new ComponentName(stockHomeRi.activityInfo.packageName, stockHomeRi.activityInfo.name);
+                fresh.add(new Entry("Fire TV Home", cn, null, stockIcon));
+            }
+        }
         docked = 0;
         while (docked < fresh.size() && isDocked(fresh.get(docked))) docked++;
         emptySlots = dockRow && !reordering ? DockSlots.empty(docked, dockSize, fresh.size(), fillDock) : 0;
@@ -499,6 +521,21 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     /** Opens the tile's activity by explicit component, with no extras: a card can name nothing else. */
     private void launch(Entry e) {
+        if ("com.amazon.tv.launcher".equals(e.pkg)) {
+            HomeKeyService.allowStockLauncher = true;
+            Intent stockIntent = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).setPackage("com.amazon.tv.launcher");
+            if (ctx.getPackageManager().resolveActivity(stockIntent, 0) == null) {
+                stockIntent = ctx.getPackageManager().getLaunchIntentForPackage("com.amazon.tv.launcher");
+            }
+            try {
+                if (stockIntent != null) {
+                    ctx.startActivity(stockIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                }
+            } catch (Exception ex) {
+                Toast.makeText(ctx, "Could not open stock launcher", Toast.LENGTH_SHORT).show();
+            }
+            return;
+        }
         if (e.kind == Entry.HOME_SETTINGS) {
             ctx.startActivity(new Intent(ctx, HomeSettingsActivity.class)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));

@@ -164,8 +164,22 @@ public final class LauncherSettingsActivity extends Activity {
             refresh();
         });
         findViewById(R.id.defaultHomeChoice).setOnClickListener(v -> {
-            Toast.makeText(this, R.string.home_settings_help, Toast.LENGTH_LONG).show();
-            open(new Intent(Settings.ACTION_HOME_SETTINGS));
+            Intent homeSettings = new Intent(Settings.ACTION_HOME_SETTINGS);
+            if (getPackageManager().resolveActivity(homeSettings, 0) != null) {
+                Toast.makeText(this, R.string.home_settings_help, Toast.LENGTH_LONG).show();
+                open(homeSettings);
+            } else {
+                Intent stockHome = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).setPackage("com.amazon.tv.launcher");
+                if (getPackageManager().resolveActivity(stockHome, 0) == null) {
+                    stockHome = getPackageManager().getLaunchIntentForPackage("com.amazon.tv.launcher");
+                }
+                if (stockHome != null) {
+                    HomeKeyService.allowStockLauncher = true;
+                    open(stockHome);
+                } else {
+                    Toast.makeText(this, R.string.not_available, Toast.LENGTH_SHORT).show();
+                }
+            }
         });
         findViewById(R.id.tvSettingsChoice).setOnClickListener(v ->
                 open(SystemSettings.intent(this, Settings.ACTION_SETTINGS)));

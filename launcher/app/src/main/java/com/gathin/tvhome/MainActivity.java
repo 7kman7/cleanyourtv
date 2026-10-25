@@ -682,8 +682,16 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         View btnSettings = findViewById(R.id.btnSettings);
         View btnLauncherSettings = findViewById(R.id.btnLauncherSettings);
         if (btnLauncherSettings != null) {
-            btnLauncherSettings.setOnClickListener(v -> startActivityForResult(
-                    new Intent(this, LauncherSettingsActivity.class), LAUNCHER_SETTINGS_REQUEST));
+            btnLauncherSettings.setOnClickListener(v -> showSettingsMenu());
+            btnLauncherSettings.setOnLongClickListener(v -> {
+                startActivityForResult(new Intent(this, LauncherSettingsActivity.class), LAUNCHER_SETTINGS_REQUEST);
+                return true;
+            });
+        }
+        View btnDockEdit = findViewById(R.id.btnDockEdit);
+        if (btnDockEdit != null) {
+            btnDockEdit.setOnClickListener(v -> startDockEdit());
+            btnDockEdit.setVisibility(cfg.dockRow ? View.VISIBLE : View.GONE);
         }
         btnInputs.setOnClickListener(v -> showInputs());
         btnWifi.setOnClickListener(v -> openNetworkPill());
@@ -761,22 +769,28 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 focusTile(singleRow ? lastFocused : lastFocused % COLUMNS);
                 return true;
             }
-            int firstButton = btnInputs.getVisibility() == View.VISIBLE ? R.id.btnInputs : firstTopButton().getId();
-            int leftButton = rtlMenuBar ? R.id.btnSettings : firstButton;
-            int rightButton = rtlMenuBar ? firstButton : R.id.btnSettings;
+            View firstBtn = firstTopButton();
+            View lastBtn = lastTopButton();
+            int leftButton = rtlMenuBar ? (lastBtn != null ? lastBtn.getId() : R.id.btnSettings)
+                    : (firstBtn != null ? firstBtn.getId() : R.id.btnSettings);
+            int rightButton = rtlMenuBar ? (firstBtn != null ? firstBtn.getId() : R.id.btnSettings)
+                    : (lastBtn != null ? lastBtn.getId() : R.id.btnSettings);
             if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) return v.getId() == leftButton;
             return keyCode == KeyEvent.KEYCODE_DPAD_RIGHT && v.getId() == rightButton;
         };
         btnInputs.setOnKeyListener(pillKeys);
         btnWifi.setOnKeyListener(pillKeys);
+        if (btnLauncherSettings != null) btnLauncherSettings.setOnKeyListener(pillKeys);
         btnSettings.setOnKeyListener(pillKeys);
         btnReorder.setOnKeyListener(pillKeys);
+        if (btnDockEdit != null) btnDockEdit.setOnKeyListener(pillKeys);
         btnLibraryTop.setOnKeyListener(pillKeys);
         for (View button : topAppButtons) button.setOnKeyListener(pillKeys);
         if (advancedEffects) {
-            List<View> pills = new ArrayList<>(Arrays.asList(btnInputs, btnWifi, btnReorder, btnLibraryTop, btnSettings));
+            List<View> pills = new ArrayList<>(Arrays.asList(btnInputs, btnWifi, btnLauncherSettings, btnSettings, btnReorder, btnDockEdit, btnLibraryTop));
             pills.addAll(topAppButtons);
             for (View button : pills) {
+                if (button == null) continue;
                 button.setOnFocusChangeListener((view, focused) -> view.animate()
                         .scaleX(focused ? 1.04f : 1f).scaleY(focused ? 1.04f : 1f)
                         .setDuration(reducedMotion ? Motion.REDUCED_MS : 160).start());
@@ -2248,12 +2262,26 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         hideHero();
     }
 
-    /** The first top-bar button after Inputs that is shown, in bar order (top_bar_apps, the network pill, ...); Settings is always there. */
+    /** The first top-bar button that is shown, in bar order; Settings is always fallback. */
     private View firstTopButton() {
         ViewGroup bar = findViewById(R.id.topButtons);
-        for (int i = 0; i < bar.getChildCount(); i++) {
-            View button = bar.getChildAt(i);
-            if (button != btnInputs && button.getVisibility() == View.VISIBLE) return button;
+        if (bar != null) {
+            for (int i = 0; i < bar.getChildCount(); i++) {
+                View button = bar.getChildAt(i);
+                if (button.getVisibility() == View.VISIBLE) return button;
+            }
+        }
+        return findViewById(R.id.btnSettings);
+    }
+
+    /** The last top-bar button that is shown, in bar order; Settings is always fallback. */
+    private View lastTopButton() {
+        ViewGroup bar = findViewById(R.id.topButtons);
+        if (bar != null) {
+            for (int i = bar.getChildCount() - 1; i >= 0; i--) {
+                View button = bar.getChildAt(i);
+                if (button.getVisibility() == View.VISIBLE) return button;
+            }
         }
         return findViewById(R.id.btnSettings);
     }
@@ -3131,15 +3159,17 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     /** The header opens launcher settings directly; hold OK keeps the extra home actions available. */
     private void showSettingsMenu() {
-        View anchor = findViewById(R.id.btnSettings);
+        View anchor = findViewById(R.id.btnLauncherSettings);
+        if (anchor == null) anchor = findViewById(R.id.btnSettings);
         View panel = getLayoutInflater().inflate(R.layout.popup_inputs, root, false);
         LinearLayout rows = panel.findViewById(R.id.rows);
-        PopupWindow popup = glassPopup(panel, (int) (200 * density));
-        if (!launcherSettingsButton) addSettingsMenuRow(rows, popup, R.string.launcher_settings, () -> startActivityForResult(
+        PopupWindow popup = glassPopup(panel, (int) (220 * density));
+        addSettingsMenuRow(rows, popup, R.string.launcher_settings, () -> startActivityForResult(
                 new Intent(this, LauncherSettingsActivity.class), LAUNCHER_SETTINGS_REQUEST));
-        // Firmware that ships its own settings app next to the AOSP one (Xiaomi China is one): the
-        // vendor app holds pages the AOSP settings has no row for, such as Account & Security with
-        // the ADB switch. Offered here only while one of them is installed.
+        addSettingsMenuRow(rows, popup, R.string.reorder, this::toggleReorder);
+        if (dockRow) addSettingsMenuRow(rows, popup, R.string.dock_edit, this::startDockEdit);
+        if (appLibraryEnabled) addSettingsMenuRow(rows, popup, R.string.app_library, this::onLibraryRequested);
+        addSettingsMenuRow(rows, popup, R.string.settings, () -> open(systemIntent(Settings.ACTION_SETTINGS)));
         if (SystemSettings.vendorIntent(this) != null) {
             addSettingsMenuRow(rows, popup, R.string.native_settings, () -> {
                 Intent vendor = SystemSettings.vendorIntent(this);
@@ -3147,11 +3177,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             });
         }
         if (moduleCards) addSettingsMenuRow(rows, popup, R.string.module_cards, this::showModuleCards);
-        if (dockRow) addSettingsMenuRow(rows, popup, R.string.dock_edit, this::startDockEdit);
-        addSettingsMenuRow(rows, popup, R.string.reorder, this::toggleReorder);
         panel.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
-        popup.setWidth(Math.max((int) (200 * density), panel.getMeasuredWidth()));
-        // Hebrew puts Settings at the left of the header: grow the menu inward from it.
+        popup.setWidth(Math.max((int) (220 * density), panel.getMeasuredWidth()));
         dropIn(popup, panel, anchor, getResources().getBoolean(R.bool.rtl_menu_bar)
                 ? Gravity.START : Gravity.END);
         rows.getChildAt(0).requestFocus();
