@@ -592,7 +592,7 @@ and a wallpaper.
     time Home comes up after the TV starts. Once per boot, so Home and Back still reach the launcher.
   - **Follow theme (reset on-TV choices)**, which clears every choice above. Pushing or resetting a theme
     clears them too.
-  - **Recent apps dock** shows your recently used apps in the dock row at the top of Home, with all other apps below.
+  - **Recent apps** sorts apps below the dock by most recently opened, keeping the dock just as you set it.
   - **Override current launcher** intercepts the stock launcher with zero flicker.
   - **Run at startup** ensures CleanYourTV opens at boot.
   - **Module cards** enables rich dynamic cards from supported apps.

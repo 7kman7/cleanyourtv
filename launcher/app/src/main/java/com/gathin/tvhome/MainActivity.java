@@ -3171,7 +3171,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (appLibraryEnabled) addSettingsMenuRow(rows, popup, R.string.app_library, this::onLibraryRequested);
         addSettingsMenuRow(rows, popup, R.string.manage_apps, () -> open(SystemSettings.manageAppsIntent(this)));
         if (SystemSettings.isAirPlayAvailable(this)) {
-            addSettingsMenuRow(rows, popup, R.string.airplay, () -> open(SystemSettings.airPlayIntent(this)));
+            addSettingsMenuRow(rows, popup, R.string.airplay, () -> {
+                if (!SystemSettings.launchAirPlay(this)) {
+                    open(SystemSettings.airPlayIntent(this));
+                }
+            });
         }
         if (SystemSettings.vendorIntent(this) != null) {
             addSettingsMenuRow(rows, popup, R.string.native_settings, () -> {

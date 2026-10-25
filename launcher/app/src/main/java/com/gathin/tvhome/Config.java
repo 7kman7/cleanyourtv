@@ -43,7 +43,7 @@ final class Config {
     static final String ROWS_BELOW_DOCK_KEY = "rows_below_dock";
     static final String WALLPAPER_CHOICE_KEY = "wallpaper_choice";
     static final String DOCK_OPACITY_KEY = "dock_opacity";
-    static final String RECENT_APPS_DOCK_KEY = "recent_apps_dock";
+    static final String RECENT_APPS_KEY = "recent_apps";
     static final String THEME_KEY = "chosen_theme";
     static final String THEME_DEFAULT = "default";
     static final String THEME_OLED = "oled";
@@ -65,7 +65,7 @@ final class Config {
     private static final String THEME_REVISION_NAME = "theme_revision";
     private static final String THEME_SIGNATURE_KEY = "theme_signature";
 
-    final boolean recentAppsDock;
+    final boolean recentApps;
     final String chosenTheme;
     final List<String> dockApps;
     /** Grid apps fill the dock slots dock_apps leaves free (config.xml, fill_dock); on by default, false leaves the slots empty. */
@@ -262,8 +262,8 @@ final class Config {
                    boolean keyFilter, boolean dockGlass, String glowStyle, boolean wallpaperCaptions,
                    boolean handleViewInputs, boolean tileMenu, boolean dockEvenPadding, boolean cinematicDots, boolean cinematicWhiteFocus, boolean wifiStatusColor, int cinematicScrim, int cinematicArt,
                    Map<String, Set<String>> wallpaperMoods, boolean gamepadPassthrough, boolean consumeVolumeKeys, boolean wifiStatusWarnings, List<String> topBarApps, boolean showGreeting, boolean headerWhite, boolean clockWallpaper, int clockWallpaperDim, boolean clockGlow, String glassStyle, boolean singleRow, boolean dockBandAll, boolean lunarDate, int lunarUtcOffset,
-                   boolean recentAppsDock, String chosenTheme) {
-        this.recentAppsDock = recentAppsDock;
+                   boolean recentApps, String chosenTheme) {
+        this.recentApps = recentApps;
         this.chosenTheme = chosenTheme != null ? chosenTheme : THEME_DEFAULT;
         this.handleViewInputs = handleViewInputs;
         this.tileMenu = tileMenu;
@@ -664,10 +664,7 @@ final class Config {
             glowStyle = GLOW_HORIZON;
         }
 
-        boolean recentAppsDock = choices.getBoolean(RECENT_APPS_DOCK_KEY, true);
-        if (!recentAppsDock) {
-            dockRow = false;
-        }
+        boolean recentApps = choices.getBoolean(RECENT_APPS_KEY, true);
 
         return new Config(dock, fillDock, hidden, libraryApps, liveTv, liveTvAction, liveTvInputId, packageMap(launchActions), packageMap(appLabels),
                 packageMap(appBanners), panelService,
@@ -678,7 +675,7 @@ final class Config {
                 wallpapers, rotationMinutes, wallpaperDim, dockOpacity, wallpaperOrder, applied,
                 festival, inputKeycodes, appKeys, stockHomeRedirect, json == null ? Collections.emptyList() : raceCalendar(json), cinematic, ambientGlow, appGlow, fadeRows,
                 Math.max(0, idleClockMinutes), keyFilter, dockGlass, glowStyle, wallpaperCaptions, handleViewInputs, tileMenu, dockEvenPadding, cinematicDots, cinematicWhiteFocus, wifiStatusColor, cinematicScrim, cinematicArt, wallpaperMoods, gamepadPassthrough, consumeVolumeKeys, wifiStatusWarnings, topBarApps, showGreeting, headerWhite, clockWallpaper, Math.max(0, Math.min(90, clockWallpaperDim)), clockGlow, glassStyle, singleRow && dockRow, dockBandAll, lunar, lunarOffset,
-                recentAppsDock, chosenTheme);
+                recentApps, chosenTheme);
     }
 
     /**

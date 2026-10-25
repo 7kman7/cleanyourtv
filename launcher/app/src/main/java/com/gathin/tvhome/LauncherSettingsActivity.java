@@ -33,7 +33,7 @@ public final class LauncherSettingsActivity extends Activity {
     private TextView advancedChoice;
     private TextView followThemeChoice;
     private TextView openOnStartChoice;
-    private TextView recentAppsDockChoice;
+    private TextView recentAppsChoice;
     private TextView overrideLauncherChoice;
     private TextView startAtBootChoice;
     private TextView moduleCardsChoice;
@@ -45,7 +45,7 @@ public final class LauncherSettingsActivity extends Activity {
     private boolean overrideLauncher;
     private boolean startAtBoot;
     private boolean moduleCards;
-    private boolean recentAppsDock;
+    private boolean recentApps;
     private String chosenTheme;
 
     private static final String[] THEME_KEYS = {
@@ -80,7 +80,7 @@ public final class LauncherSettingsActivity extends Activity {
         animations = config.animations;
         advancedEffects = config.animations && config.advancedEffects;
         chosenTheme = config.chosenTheme;
-        recentAppsDock = config.recentAppsDock;
+        recentApps = config.recentApps;
 
         int[] ids = {R.id.columns4, R.id.columns5, R.id.columns6, R.id.columns7};
         for (int i = 0; i < ids.length; i++) {
@@ -159,11 +159,11 @@ public final class LauncherSettingsActivity extends Activity {
             openOnStartChoice.setOnClickListener(v -> showOpenOnStartPicker());
         }
 
-        recentAppsDock = choices.getBoolean(Config.RECENT_APPS_DOCK_KEY, true);
-        recentAppsDockChoice = findViewById(R.id.recentAppsDockChoice);
-        recentAppsDockChoice.setOnClickListener(v -> {
-            recentAppsDock = !recentAppsDock;
-            choices.edit().putBoolean(Config.RECENT_APPS_DOCK_KEY, recentAppsDock).apply();
+        recentApps = choices.getBoolean(Config.RECENT_APPS_KEY, true);
+        recentAppsChoice = findViewById(R.id.recentAppsChoice);
+        recentAppsChoice.setOnClickListener(v -> {
+            recentApps = !recentApps;
+            choices.edit().putBoolean(Config.RECENT_APPS_KEY, recentApps).apply();
             changed();
             refresh();
         });
@@ -199,7 +199,7 @@ public final class LauncherSettingsActivity extends Activity {
                     .remove("advanced_effects").remove(Config.WALLPAPER_CHOICE_KEY)
                     .remove(Config.DOCK_OPACITY_KEY).remove(OpenOnStart.KEY)
                     .remove("override_launcher").remove("start_at_boot").remove("module_cards")
-                    .remove(Config.RECENT_APPS_DOCK_KEY).remove(Config.THEME_KEY).commit();
+                    .remove(Config.RECENT_APPS_KEY).remove(Config.THEME_KEY).commit();
             Config current = Config.load(this);
             columns = current.columns;
             rowsBelowDock = current.rowsBelowDock;
@@ -207,7 +207,7 @@ public final class LauncherSettingsActivity extends Activity {
             animations = current.animations;
             advancedEffects = current.animations && current.advancedEffects;
             chosenTheme = current.chosenTheme;
-            recentAppsDock = current.recentAppsDock;
+            recentApps = current.recentApps;
             View r = findViewById(R.id.settingsRoot);
             if (r != null) r.setBackgroundColor(current.backgroundColor);
             changed();
@@ -403,8 +403,8 @@ public final class LauncherSettingsActivity extends Activity {
                         : wallpaperCurrent != null ? wallpaperCurrent
                         : getString(R.string.wallpaper_theme_default)));
         openOnStartChoice.setText(getString(R.string.open_on_start_state, openOnStartLabel()));
-        recentAppsDockChoice.setText(getString(R.string.recent_apps_dock_state,
-                getString(recentAppsDock ? R.string.on : R.string.off)));
+        recentAppsChoice.setText(getString(R.string.recent_apps_state,
+                getString(recentApps ? R.string.on : R.string.off)));
         overrideLauncherChoice.setText(getString(R.string.override_launcher_state,
                 getString(overrideLauncher ? R.string.on : R.string.off)));
         startAtBootChoice.setText(getString(R.string.run_at_startup_state,
@@ -420,7 +420,7 @@ public final class LauncherSettingsActivity extends Activity {
                 || choices.contains(Config.WALLPAPER_CHOICE_KEY) || choices.contains(Config.DOCK_OPACITY_KEY)
                 || choices.contains(OpenOnStart.KEY) || choices.contains("override_launcher")
                 || choices.contains("start_at_boot") || choices.contains("module_cards")
-                || choices.contains(Config.RECENT_APPS_DOCK_KEY) || choices.contains(Config.THEME_KEY);
+                || choices.contains(Config.RECENT_APPS_KEY) || choices.contains(Config.THEME_KEY);
     }
 
     private void open(Intent intent) {

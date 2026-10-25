@@ -234,15 +234,14 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private final Map<String, String> appLabels, appBanners;
     /** Every app tile is its icon on a card tinted from that icon, never its banner (config.xml, uniform_tiles). */
     private final boolean uniformTiles;
-    private final boolean recentAppsDock;
-    private final Set<String> dockedPackages = new HashSet<>();
+    private final boolean recentApps;
     private final List<Entry> items = new ArrayList<>();
 
     AppAdapter(Context ctx, TileListener listener, int dockSize, Config cfg) {
         this.ctx = ctx;
         this.listener = listener;
         this.dockSize = dockSize;
-        this.recentAppsDock = cfg.recentAppsDock;
+        this.recentApps = cfg.recentApps;
         this.favourites = cfg.dockApps;
         this.fillDock = cfg.fillDock;
         this.hidden = new HashSet<>(cfg.hiddenApps);
@@ -390,49 +389,33 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                         null, airplayIcon, null, 0));
             }
         }
-        if (recentAppsDock && dockRow) {
-            List<Entry> dockCandidates = new ArrayList<>();
-            Entry homeSettingsEntry = null;
-            for (Entry e : fresh) {
+        docked = 0;
+        while (docked < fresh.size() && isDocked(fresh.get(docked))) docked++;
+        if (recentApps && docked < fresh.size()) {
+            List<Entry> grid = new ArrayList<>(fresh.subList(docked, fresh.size()));
+            Entry homeSettings = null;
+            List<Entry> toSort = new ArrayList<>();
+            for (Entry e : grid) {
                 if (e.kind == Entry.HOME_SETTINGS) {
-                    homeSettingsEntry = e;
+                    homeSettings = e;
                 } else {
-                    dockCandidates.add(e);
+                    toSort.add(e);
                 }
             }
-            Collections.sort(dockCandidates, (a, b) -> {
+            Collections.sort(toSort, (a, b) -> {
                 long la = LastOpened.get(ctx, a.pkg);
                 long lb = LastOpened.get(ctx, b.pkg);
                 if (la > 0 || lb > 0) {
                     return Long.compare(lb, la);
                 }
-                int saved = Order.compare(savedRanks, a.component.flattenToShortString(), b.component.flattenToShortString());
-                if (saved != 0) return saved;
-                int fa = favourites.indexOf(a.pkg), fb = favourites.indexOf(b.pkg);
-                if (fa >= 0 || fb >= 0) {
-                    if (fa < 0) return 1;
-                    if (fb < 0) return -1;
-                    return Integer.compare(fa, fb);
-                }
                 return a.label.compareToIgnoreCase(b.label);
             });
-            int dockCount = Math.min(dockSize, dockCandidates.size());
-            List<Entry> dockedEntries = new ArrayList<>(dockCandidates.subList(0, dockCount));
-            List<Entry> remainingEntries = new ArrayList<>(dockCandidates.subList(dockCount, dockCandidates.size()));
-            dockedPackages.clear();
-            for (Entry e : dockedEntries) {
-                if (e.pkg != null) dockedPackages.add(e.pkg);
-            }
-            Collections.sort(remainingEntries, (a, b) -> a.label.compareToIgnoreCase(b.label));
-            fresh.clear();
-            fresh.addAll(dockedEntries);
-            fresh.addAll(remainingEntries);
-            if (homeSettingsEntry != null) {
-                fresh.add(homeSettingsEntry);
+            fresh.subList(docked, fresh.size()).clear();
+            fresh.addAll(toSort);
+            if (homeSettings != null) {
+                fresh.add(homeSettings);
             }
         }
-        docked = 0;
-        while (docked < fresh.size() && isDocked(fresh.get(docked))) docked++;
         emptySlots = dockRow && !reordering ? DockSlots.empty(docked, dockSize, fresh.size(), fillDock) : 0;
         for (int i = 0; i < emptySlots; i++) {
             fresh.add(docked + i, new Entry(Entry.EMPTY, "", new ComponentName(ctx, "empty-dock-slot-" + i),
@@ -602,14 +585,12 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     /** Opens the tile's activity by explicit component, with no extras: a card can name nothing else. */
     private void launch(Entry e) {
-        if (e.kind == Entry.AIRPLAY) {
-            Intent airplayIntent = SystemSettings.airPlayIntent(ctx);
-            if (airplayIntent != null) {
-                try {
-                    ctx.startActivity(airplayIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-                } catch (Exception ex) {
-                    Toast.makeText(ctx, "Could not open AirPlay", Toast.LENGTH_SHORT).show();
-                }
+        if (e.kind == Entry.AIRPLAY
+                || "com.apple.airplay.amazon.airplay".equals(e.pkg)
+                || (e.pkg != null && e.pkg.toLowerCase().contains("phairplay"))
+                || "AirPlay".equalsIgnoreCase(e.label)) {
+            if (!SystemSettings.launchAirPlay(ctx)) {
+                Toast.makeText(ctx, ctx.getString(R.string.cant_open, e.label), Toast.LENGTH_SHORT).show();
             }
             return;
         }
@@ -689,9 +670,6 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
      * the owner moved into the dock stays there (#499); else a dock_apps entry.
      */
     private boolean isDocked(Entry e) {
-        if (recentAppsDock && dockRow) {
-            return e.pkg != null && dockedPackages.contains(e.pkg);
-        }
         if (savedDocked < 0) return favourites.contains(e.pkg);
         Integer rank = savedRanks.get(e.component.flattenToShortString());
         return rank != null && rank < savedDocked;

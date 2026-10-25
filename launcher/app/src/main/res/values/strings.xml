@@ -167,6 +167,6 @@
     <string name="theme_cyberpunk" translatable="false">Cyberpunk Violet</string>
     <string name="theme_forest" translatable="false">Emerald Forest</string>
     <string name="theme_sunset" translatable="false">Sunset Ember</string>
-    <string name="recent_apps_dock_state" translatable="false">Recent apps dock: %1$s</string>
-    <string name="recent_apps_dock_help" translatable="false">Show your recently opened apps in the dock row at the top of Home</string>
+    <string name="recent_apps_state" translatable="false">Recent apps: %1$s</string>
+    <string name="recent_apps_help" translatable="false">Sort apps below the dock by most recently opened, keeping the dock as set</string>
 </resources>
