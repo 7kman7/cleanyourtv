@@ -113,6 +113,8 @@ final class SystemSettings {
         return null;
     }
 
+    private static boolean phairPlayWarmed = false;
+
     /** Attempts to keep PhairPlay's receiver service running in the background. */
     static void ensureAirPlayRunning(Context context) {
         Intent phairplay = phairPlayIntent(context);
@@ -131,6 +133,31 @@ final class SystemSettings {
                 } catch (Exception ignored) {
                 }
             }
+        }
+    }
+
+    /**
+     * Warm-starts PhairPlay on launcher startup so its receiver service is listening for connections,
+     * immediately returning focus to CleanYourTV with zero animation.
+     */
+    static void warmPhairPlay(android.app.Activity activity) {
+        if (phairPlayWarmed) return;
+        Intent phairplay = phairPlayIntent(activity);
+        if (phairplay == null) return;
+        phairPlayWarmed = true;
+        try {
+            Intent launch = new Intent(phairplay)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION);
+            activity.startActivity(launch);
+            activity.getWindow().getDecorView().postDelayed(() -> {
+                try {
+                    Intent home = new Intent(activity, MainActivity.class)
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_NO_ANIMATION);
+                    activity.startActivity(home);
+                } catch (Exception ignored) {
+                }
+            }, 350);
+        } catch (Exception ignored) {
         }
     }
 

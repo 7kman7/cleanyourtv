@@ -157,4 +157,10 @@
     <string name="airplay" translatable="false">AirPlay &amp; HomeKit</string>
     <string name="module_cards_state" translatable="false">Module cards: %1$s</string>
     <string name="module_cards_help" translatable="false">Enables rich dynamic preview cards from supported TV apps</string>
+    <string name="continue_watching_title" translatable="false">Continue Watching</string>
+    <string name="continue_watching_state" translatable="false">Continue watching: %1$s</string>
+    <string name="continue_watching_help" translatable="false">Display a Continue Watching row for supported apps on the home screen</string>
+    <string name="continue_watching_apps" translatable="false">Continue watching apps</string>
+    <string name="continue_watching_apps_help" translatable="false">Select which installed apps appear in the Continue Watching row</string>
+    <string name="continue_watching_empty" translatable="false">No recent content to resume</string>
 </resources>

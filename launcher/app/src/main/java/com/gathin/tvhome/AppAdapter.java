@@ -559,7 +559,6 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     /** Opens the tile's activity by explicit component, with no extras: a card can name nothing else. */
     private void launch(Entry e) {
         if (e.kind == Entry.AIRPLAY) {
-            HomeKeyService.allowStockLauncherUntil = android.os.SystemClock.uptimeMillis() + 60000;
             Intent airplayIntent = SystemSettings.airPlayIntent(ctx);
             if (airplayIntent != null) {
                 try {
@@ -570,12 +569,8 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             }
             return;
         }
-        if ("com.apple.airplay.amazon.airplay".equals(e.pkg) || "com.amazon.cast.sink".equals(e.pkg)
-                || (e.pkg != null && e.pkg.toLowerCase().contains("phairplay"))) {
-            HomeKeyService.allowStockLauncherUntil = android.os.SystemClock.uptimeMillis() + 60000;
-        }
         if ("com.amazon.tv.launcher".equals(e.pkg)) {
-            HomeKeyService.allowStockLauncherUntil = android.os.SystemClock.uptimeMillis() + 10000;
+            HomeKeyService.allowStockLauncherUntil = android.os.SystemClock.uptimeMillis() + 3000;
             Intent stockIntent = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).setPackage("com.amazon.tv.launcher");
             if (ctx.getPackageManager().resolveActivity(stockIntent, 0) == null) {
                 stockIntent = ctx.getPackageManager().getLaunchIntentForPackage("com.amazon.tv.launcher");

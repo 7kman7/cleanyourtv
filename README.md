@@ -594,6 +594,8 @@ and a wallpaper.
   - **Override current launcher** intercepts the stock launcher with zero flicker.
   - **Run at startup** ensures CleanYourTV opens at boot.
   - **Module cards** enables rich dynamic cards from supported apps.
+  - **Continue watching** enables the Continue Watching shelf on the home screen.
+  - **Continue watching apps** selects which apps appear in the Continue Watching row.
   - **Choose default home** opens Android's home picker, and **TV system settings** the TV's own settings
     page.
 - **Change the default home:** Launcher settings and the optional Default-home tile

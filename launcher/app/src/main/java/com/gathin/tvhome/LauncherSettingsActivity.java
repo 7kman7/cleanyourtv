@@ -17,7 +17,9 @@ import android.widget.Toast;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /** Remote-friendly settings owned by the launcher; system settings stay one row away. */
 public final class LauncherSettingsActivity extends Activity {
@@ -35,6 +37,8 @@ public final class LauncherSettingsActivity extends Activity {
     private TextView overrideLauncherChoice;
     private TextView startAtBootChoice;
     private TextView moduleCardsChoice;
+    private TextView continueWatchingChoice;
+    private TextView continueWatchingAppsChoice;
     private int columns;
     private int rowsBelowDock;
     private int dockOpacity;
@@ -43,6 +47,7 @@ public final class LauncherSettingsActivity extends Activity {
     private boolean overrideLauncher;
     private boolean startAtBoot;
     private boolean moduleCards;
+    private boolean continueWatching;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -158,13 +163,24 @@ public final class LauncherSettingsActivity extends Activity {
             changed();
             refresh();
         });
+        continueWatching = choices.getBoolean("continue_watching", false);
+        continueWatchingChoice = findViewById(R.id.continueWatchingChoice);
+        continueWatchingChoice.setOnClickListener(v -> {
+            continueWatching = !continueWatching;
+            choices.edit().putBoolean("continue_watching", continueWatching).apply();
+            changed();
+            refresh();
+        });
+        continueWatchingAppsChoice = findViewById(R.id.continueWatchingAppsChoice);
+        continueWatchingAppsChoice.setOnClickListener(v -> showContinueWatchingAppsPicker());
         followThemeChoice = findViewById(R.id.followThemeChoice);
         followThemeChoice.setOnClickListener(v -> {
             if (!hasOnTvChoices()) return;
             choices.edit().remove("columns").remove(Config.ROWS_BELOW_DOCK_KEY).remove("animations")
                     .remove("advanced_effects").remove(Config.WALLPAPER_CHOICE_KEY)
                     .remove(Config.DOCK_OPACITY_KEY).remove(OpenOnStart.KEY)
-                    .remove("override_launcher").remove("start_at_boot").remove("module_cards").commit();
+                    .remove("override_launcher").remove("start_at_boot").remove("module_cards")
+                    .remove("continue_watching").remove("continue_watching_packages").commit();
             Config current = Config.load(this);
             columns = current.columns;
             rowsBelowDock = current.rowsBelowDock;
@@ -185,7 +201,7 @@ public final class LauncherSettingsActivity extends Activity {
                     stockHome = getPackageManager().getLaunchIntentForPackage("com.amazon.tv.launcher");
                 }
                 if (stockHome != null) {
-                    HomeKeyService.allowStockLauncherUntil = android.os.SystemClock.uptimeMillis() + 10000;
+                    HomeKeyService.allowStockLauncherUntil = android.os.SystemClock.uptimeMillis() + 3000;
                     open(stockHome);
                 } else {
                     Toast.makeText(this, R.string.not_available, Toast.LENGTH_SHORT).show();
@@ -193,7 +209,6 @@ public final class LauncherSettingsActivity extends Activity {
             }
         });
         findViewById(R.id.tvSettingsChoice).setOnClickListener(v -> {
-            HomeKeyService.allowStockLauncherUntil = android.os.SystemClock.uptimeMillis() + 60000;
             open(SystemSettings.intent(this, Settings.ACTION_SETTINGS));
         });
         refresh();
@@ -279,6 +294,43 @@ public final class LauncherSettingsActivity extends Activity {
                 .show();
     }
 
+    private void showContinueWatchingAppsPicker() {
+        PackageManager pm = getPackageManager();
+        List<String[]> apps = new ArrayList<>();
+        Intent tv = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER);
+        for (ResolveInfo r : pm.queryIntentActivities(tv, 0)) {
+            if (r.activityInfo == null) continue;
+            String pkg = r.activityInfo.packageName;
+            if (pkg.equals(getPackageName())) continue;
+            boolean seen = false;
+            for (String[] a : apps) seen |= a[1].equals(pkg);
+            if (!seen) apps.add(new String[]{r.loadLabel(pm).toString(), pkg});
+        }
+        Collections.sort(apps, (a, b) -> a[0].compareToIgnoreCase(b[0]));
+        String[] labels = new String[apps.size()];
+        boolean[] checked = new boolean[apps.size()];
+        Set<String> selected = choices.getStringSet("continue_watching_packages", Collections.emptySet());
+        Set<String> updated = new HashSet<>(selected);
+        for (int i = 0; i < apps.size(); i++) {
+            labels[i] = apps.get(i)[0];
+            checked[i] = selected.contains(apps.get(i)[1]);
+        }
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.continue_watching_apps)
+                .setMultiChoiceItems(labels, checked, (dialog, which, isChecked) -> {
+                    String pkg = apps.get(which)[1];
+                    if (isChecked) updated.add(pkg);
+                    else updated.remove(pkg);
+                })
+                .setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                    choices.edit().putStringSet("continue_watching_packages", updated).apply();
+                    changed();
+                    refresh();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
     /** The picked app's name, its package when it is gone, or Off. */
     private String openOnStartLabel() {
         String pkg = choices.getString(OpenOnStart.KEY, "");
@@ -344,6 +396,8 @@ public final class LauncherSettingsActivity extends Activity {
                 getString(startAtBoot ? R.string.on : R.string.off)));
         moduleCardsChoice.setText(getString(R.string.module_cards_state,
                 getString(moduleCards ? R.string.on : R.string.off)));
+        continueWatchingChoice.setText(getString(R.string.continue_watching_state,
+                getString(continueWatching ? R.string.on : R.string.off)));
         followThemeChoice.setSelected(!hasOnTvChoices());
     }
 
@@ -352,7 +406,8 @@ public final class LauncherSettingsActivity extends Activity {
                 || choices.contains("animations") || choices.contains("advanced_effects")
                 || choices.contains(Config.WALLPAPER_CHOICE_KEY) || choices.contains(Config.DOCK_OPACITY_KEY)
                 || choices.contains(OpenOnStart.KEY) || choices.contains("override_launcher")
-                || choices.contains("start_at_boot") || choices.contains("module_cards");
+                || choices.contains("start_at_boot") || choices.contains("module_cards")
+                || choices.contains("continue_watching") || choices.contains("continue_watching_packages");
     }
 
     private void open(Intent intent) {
