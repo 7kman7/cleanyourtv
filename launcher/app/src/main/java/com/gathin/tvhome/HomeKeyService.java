@@ -40,8 +40,8 @@ import java.util.Set;
  */
 public class HomeKeyService extends AccessibilityService {
 
-    /** If true, the user intentionally opened the stock launcher, so don't redirect until Home is pressed. */
-    public static volatile boolean allowStockLauncher = false;
+    /** Expiration timestamp until which the stock launcher window is allowed before redirecting. */
+    public static volatile long allowStockLauncherUntil = 0;
 
     /** restore_key_services was on when the config was read: this helper is noted for ServiceRepair. */
     private boolean repairRecord;
@@ -125,13 +125,15 @@ public class HomeKeyService extends AccessibilityService {
                 stockHome.add(ri.activityInfo.name);
             }
         }
-        // home_key_service.xml subscribes to no events, so the redirect asks for window changes only when it is on.
+        stockHome.add("com.amazon.tv.launcher");
+        stockHome.add("com.amazon.firehomestarter");
         AccessibilityServiceInfo info = getServiceInfo();
-        if (info != null && !stockHome.isEmpty()) {
+        if (info != null) {
             info.eventTypes |= AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED;
+            info.flags |= AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS;
             setServiceInfo(info);
         }
-        if (!stockHome.isEmpty()) probeAtBoot();
+        probeAtBoot();
         holdAppKeys = RemoteKeys.parseHoldAppKeys(config.appKeys);
         holdAppScancodes = RemoteKeys.parseHoldAppScancodes(config.appKeys);
         // gamepad_passthrough, off by default. Only with key_filter on: off, the service never filters keys.
@@ -175,14 +177,21 @@ public class HomeKeyService extends AccessibilityService {
         if (RemoteKeys.handle(this, event, appKeys.get(event.getKeyCode()),
                 holdAppKeys.get(event.getKeyCode()))) return true;
         if (event.getKeyCode() == KeyEvent.KEYCODE_HOME) {
-            allowStockLauncher = false;
-            if (!stockHome.isEmpty() && isOverrideEnabled()) {
+            allowStockLauncherUntil = 0;
+            if (isOverrideEnabled()) {
                 if (event.getAction() == KeyEvent.ACTION_DOWN) {
                     openHome();
                 }
                 return true;
             }
             return false;
+        }
+        if (event.getKeyCode() == KeyEvent.KEYCODE_BACK && allowStockLauncherUntil > 0) {
+            allowStockLauncherUntil = 0;
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                openHome();
+            }
+            return true;
         }
         if (event.getKeyCode() != KeyEvent.KEYCODE_ALL_APPS) return false;
         if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
@@ -205,11 +214,21 @@ public class HomeKeyService extends AccessibilityService {
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
         // stock_home_redirect: the firmware turned the stock launcher back on and its home screen came up.
-        if (allowStockLauncher || !isOverrideEnabled() || stockHome.isEmpty() || event.getEventType() != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return;
+        if (!isOverrideEnabled() || event.getEventType() != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return;
         CharSequence pkg = event.getPackageName();
-        CharSequence cls = event.getClassName();
-        if (pkg != null && (pkg.equals("com.amazon.tv.launcher") || (cls != null && stockHome.contains(cls.toString())))) {
+        if (pkg == null) return;
+        String p = pkg.toString();
+
+        boolean isStock = p.equals("com.amazon.tv.launcher") || p.equals("com.amazon.firehomestarter")
+                || (!stockHome.isEmpty() && stockHome.contains(p));
+
+        if (isStock) {
+            if (SystemClock.uptimeMillis() < allowStockLauncherUntil) {
+                return;
+            }
             openHome();
+        } else if (!p.equals(getPackageName())) {
+            allowStockLauncherUntil = 0;
         }
     }
 

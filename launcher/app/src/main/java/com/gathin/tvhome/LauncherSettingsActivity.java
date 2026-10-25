@@ -174,7 +174,7 @@ public final class LauncherSettingsActivity extends Activity {
                     stockHome = getPackageManager().getLaunchIntentForPackage("com.amazon.tv.launcher");
                 }
                 if (stockHome != null) {
-                    HomeKeyService.allowStockLauncher = true;
+                    HomeKeyService.allowStockLauncherUntil = android.os.SystemClock.uptimeMillis() + 10000;
                     open(stockHome);
                 } else {
                     Toast.makeText(this, R.string.not_available, Toast.LENGTH_SHORT).show();

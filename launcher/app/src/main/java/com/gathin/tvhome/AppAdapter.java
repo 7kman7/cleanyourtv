@@ -522,7 +522,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     /** Opens the tile's activity by explicit component, with no extras: a card can name nothing else. */
     private void launch(Entry e) {
         if ("com.amazon.tv.launcher".equals(e.pkg)) {
-            HomeKeyService.allowStockLauncher = true;
+            HomeKeyService.allowStockLauncherUntil = android.os.SystemClock.uptimeMillis() + 10000;
             Intent stockIntent = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).setPackage("com.amazon.tv.launcher");
             if (ctx.getPackageManager().resolveActivity(stockIntent, 0) == null) {
                 stockIntent = ctx.getPackageManager().getLaunchIntentForPackage("com.amazon.tv.launcher");

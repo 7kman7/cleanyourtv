@@ -688,11 +688,6 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 return true;
             });
         }
-        View btnDockEdit = findViewById(R.id.btnDockEdit);
-        if (btnDockEdit != null) {
-            btnDockEdit.setOnClickListener(v -> startDockEdit());
-            btnDockEdit.setVisibility(cfg.dockRow ? View.VISIBLE : View.GONE);
-        }
         btnInputs.setOnClickListener(v -> showInputs());
         btnWifi.setOnClickListener(v -> openNetworkPill());
         btnWifi.setOnLongClickListener(v -> {
@@ -706,17 +701,21 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             return true;
         });
         btnReorder = findViewById(R.id.btnReorder);
-        btnReorder.setOnClickListener(v -> toggleReorder());
-        btnReorder.setVisibility(cfg.reorderButton ? View.VISIBLE : View.GONE);
+        if (btnReorder != null) {
+            btnReorder.setOnClickListener(v -> toggleReorder());
+            btnReorder.setVisibility(View.GONE);
+        }
         if (!cfg.showNetworkPill) btnWifi.setVisibility(View.GONE);
         showInputsPill = cfg.showInputsPill;
         showInputsMenuRow = cfg.showInputsPill;
         btnLibraryTop = findViewById(R.id.btnLibraryTop);
-        btnLibraryTop.setOnClickListener(v -> {
-            onLibraryRequested();
-            libraryFromTopBar = true;   // closing it goes back to this button, not to the pill after the last row
-        });
-        btnLibraryTop.setVisibility(cfg.libraryButton && cfg.appLibrary ? View.VISIBLE : View.GONE);
+        if (btnLibraryTop != null) {
+            btnLibraryTop.setOnClickListener(v -> {
+                onLibraryRequested();
+                libraryFromTopBar = true;   // closing it goes back to this button, not to the pill after the last row
+            });
+            btnLibraryTop.setVisibility(View.GONE);
+        }
         addTopBarApps(cfg.topBarApps);
         iconOnlyButtons = cfg.iconOnlyButtons;
         topMenu = cfg.topMenu;
@@ -782,15 +781,16 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         btnWifi.setOnKeyListener(pillKeys);
         if (btnLauncherSettings != null) btnLauncherSettings.setOnKeyListener(pillKeys);
         btnSettings.setOnKeyListener(pillKeys);
-        btnReorder.setOnKeyListener(pillKeys);
-        if (btnDockEdit != null) btnDockEdit.setOnKeyListener(pillKeys);
-        btnLibraryTop.setOnKeyListener(pillKeys);
+        if (btnReorder != null) btnReorder.setOnKeyListener(pillKeys);
+        if (btnLibraryTop != null) btnLibraryTop.setOnKeyListener(pillKeys);
         for (View button : topAppButtons) button.setOnKeyListener(pillKeys);
         if (advancedEffects) {
-            List<View> pills = new ArrayList<>(Arrays.asList(btnInputs, btnWifi, btnLauncherSettings, btnSettings, btnReorder, btnDockEdit, btnLibraryTop));
+            List<View> pills = new ArrayList<>();
+            for (View v : Arrays.asList(btnInputs, btnWifi, btnLauncherSettings, btnSettings)) {
+                if (v != null && v.getVisibility() == View.VISIBLE) pills.add(v);
+            }
             pills.addAll(topAppButtons);
             for (View button : pills) {
-                if (button == null) continue;
                 button.setOnFocusChangeListener((view, focused) -> view.animate()
                         .scaleX(focused ? 1.04f : 1f).scaleY(focused ? 1.04f : 1f)
                         .setDuration(reducedMotion ? Motion.REDUCED_MS : 160).start());
@@ -1327,7 +1327,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         reordering = true;
         orderAtStart = adapter.movableKeys();
         glass.setAccent(REORDER_ACCENT);
-        btnReorder.setActivated(true);
+        if (btnReorder != null) btnReorder.setActivated(true);
         return true;
     }
 
@@ -1471,7 +1471,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         reordering = false;
         adapter.setReordering(false);
         glass.setAccent(festive ? festival.accentColor() : 0);
-        btnReorder.setActivated(false);
+        if (btnReorder != null) btnReorder.setActivated(false);
         List<String> keys = adapter.movableKeys();
         List<String> before = orderAtStart;
         orderAtStart = null;
@@ -1580,7 +1580,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         appLibrary = new AppLibraryDialog(this, animations, reducedMotion, appLibrarySelection, adapter::containsPackage, () -> reloadApps(false), () -> {
             appLibrary = null;
             openPopup = null;
-            if (libraryFromTopBar) {
+            if (libraryFromTopBar && btnLibraryTop != null && btnLibraryTop.getVisibility() == View.VISIBLE) {
                 libraryFromTopBar = false;
                 btnLibraryTop.requestFocus();
                 return;
