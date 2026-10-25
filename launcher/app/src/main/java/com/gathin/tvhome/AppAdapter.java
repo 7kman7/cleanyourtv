@@ -650,13 +650,30 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             h.card.setOnLongClickListener(null);
             return;
         }
+        boolean dockKind = dockRow && (singleRow || position < dockSize);
+        boolean showName = !(dockKind && restNameAlpha == 0f);
+        bindCard(h, e, showName, position);
+        h.card.setOnLongClickListener(v -> {
+            if (tileMenu) {
+                int pos = h.getBindingAdapterPosition();
+                if (pos != RecyclerView.NO_POSITION) listener.onTileLongPress(pos, v);
+                return true;
+            }
+            Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + e.pkg));
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            try {
+                ctx.startActivity(i);
+            } catch (ActivityNotFoundException ignored) {
+            }
+            return true;
+        });
+    }
+
+    private void bindCard(Holder h, Entry e, boolean showName, int position) {
         h.card.setVisibility(View.VISIBLE);
         h.card.setFocusable(true);
         h.name.setText(e.name);
-        // The dock has no labels, unless always_show_names asks for them (DockDecoration then makes room in the band).
-        // In a single row every tile is the dock's kind: the big title above names it.
-        boolean dockKind = dockRow && (singleRow || position < dockSize);
-        h.name.setVisibility(dockKind && restNameAlpha == 0f ? View.INVISIBLE : View.VISIBLE);
+        h.name.setVisibility(showName ? View.VISIBLE : View.INVISIBLE);
         boolean focused = h.card.isFocused();   // a rebind after reload() can hit the focused tile
         h.name.setAlpha(focused ? 1f : restNameAlpha);
         h.card.setScaleX(focused && animations ? focusScale() : 1f);
@@ -686,20 +703,6 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             h.label.setVisibility(uniformTiles ? View.GONE : View.VISIBLE);
         }
         h.card.setOnClickListener(v -> launch(e));
-        h.card.setOnLongClickListener(v -> {
-            if (tileMenu) {
-                int pos = h.getBindingAdapterPosition();
-                if (pos != RecyclerView.NO_POSITION) listener.onTileLongPress(pos, v);
-                return true;
-            }
-            Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + e.pkg));
-            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            try {
-                ctx.startActivity(i);
-            } catch (ActivityNotFoundException ignored) {
-            }
-            return true;
-        });
     }
 
     /** Opens the tile's activity by explicit component, with no extras: a card can name nothing else. */
@@ -1272,37 +1275,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         @Override
         public void onBindViewHolder(@NonNull Holder h, int position) {
             Entry e = shelfItems.get(position);
-            h.card.setVisibility(View.VISIBLE);
-            h.card.setFocusable(true);
-            h.name.setText(e.name);
-            h.name.setVisibility(View.VISIBLE);
-            boolean focused = h.card.isFocused();
-            h.name.setAlpha(focused ? 1f : restNameAlpha);
-            h.card.setScaleX(focused && animations ? focusScale() : 1f);
-            h.card.setScaleY(focused && animations ? focusScale() : 1f);
-            h.card.setTranslationY(focused && advancedEffects ? -4f * ctx.getResources().getDisplayMetrics().density : 0f);
-            h.card.setTranslationZ(focused && advancedEffects ? 8f * ctx.getResources().getDisplayMetrics().density : 0f);
-            h.banner.setScaleX(focused && advancedEffects ? 1.035f : 1f);
-            h.banner.setScaleY(focused && advancedEffects ? 1.035f : 1f);
-            h.card.setBackground(e.banner != null && e.banner.getOpacity() == PixelFormat.OPAQUE ? null : h.cardBackground);
-            if (uniformTiles && e.banner == null) {
-                if (e.backdrop == null) e.backdrop = backdrop(e.icon, ambientColorAt(position));
-                h.card.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, e.backdrop));
-            }
-            if (e.banner != null) {
-                h.banner.setImageDrawable(e.banner);
-                h.banner.setVisibility(View.VISIBLE);
-                h.icon.setVisibility(View.GONE);
-                h.label.setVisibility(View.GONE);
-            } else {
-                h.banner.setImageDrawable(null);
-                h.banner.setVisibility(View.GONE);
-                h.icon.setImageDrawable(e.icon);
-                h.icon.setVisibility(View.VISIBLE);
-                h.label.setText(e.label);
-                h.label.setVisibility(uniformTiles ? View.GONE : View.VISIBLE);
-            }
-            h.card.setOnClickListener(v -> launch(e));
+            bindCard(h, e, true, position);
             h.card.setOnLongClickListener(v -> {
                 if (tileMenu) {
                     listener.onTileLongPress(-1, v);
