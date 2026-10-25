@@ -75,47 +75,11 @@ public class InputKeyService extends AccessibilityService {
         if (!isInputKey(event.getKeyCode())) return false;
         if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
             HomeKeyService.allowStockLauncherUntil = SystemClock.uptimeMillis() + 60000;
-            if (HomeKeyService.openQuickSettings()) {
+            if (SystemSettings.launchInputsSettings(this)) {
                 return true;
             }
-            String[] actions = {
-                    "android.media.tv.action.VIEW_INPUTS",
-                    "com.android.tv.action.VIEW_INPUTS",
-                    "com.amazon.tv.action.INPUT_CHOOSER",
-                    "amazon.intent.action.INPUTS_SETTINGS"
-            };
-            for (String act : actions) {
-                try {
-                    Intent actIntent = new Intent(act).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    List<ResolveInfo> receivers = getPackageManager().queryIntentActivities(actIntent, 0);
-                    if (receivers != null) {
-                        for (ResolveInfo ri : receivers) {
-                            if (ri.activityInfo != null && !getPackageName().equals(ri.activityInfo.packageName)) {
-                                actIntent.setComponent(new ComponentName(ri.activityInfo.packageName, ri.activityInfo.name));
-                                startActivity(actIntent);
-                                return true;
-                            }
-                        }
-                    }
-                } catch (Exception ignored) {
-                }
-            }
-            String[] comps = {
-                    "com.amazon.tv.inputpreference/com.amazon.tv.inputpreference.player.InputChooserActivity",
-                    "com.amazon.tv.inputpreference.service/com.amazon.tv.inputpreference.player.InputChooserActivity",
-                    "com.amazon.tv.inputpreference/com.amazon.tv.inputpreference.player.InputTabActivity",
-                    "com.amazon.tv.inputpreference.service/com.amazon.tv.inputpreference.player.InputTabActivity",
-                    "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.inputs.InputsActivity"
-            };
-            for (String comp : comps) {
-                ComponentName cn = ComponentName.unflattenFromString(comp);
-                if (cn != null) {
-                    try {
-                        startActivity(new Intent().setComponent(cn).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-                        return true;
-                    } catch (Exception ignored) {
-                    }
-                }
+            if (HomeKeyService.openQuickSettings()) {
+                return true;
             }
             Intent show = new Intent(this, MainActivity.class)
                     .setAction(MainActivity.ACTION_VIEW_INPUTS)

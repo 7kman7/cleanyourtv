@@ -367,4 +367,141 @@ final class SystemSettings {
 
         return intent(context, Settings.ACTION_SETTINGS);
     }
+
+    /**
+     * Opens the Inputs section of the TV's native settings menu.
+     */
+    static boolean launchInputsSettings(Context context) {
+        PackageManager pm = context.getPackageManager();
+
+        // 1. Standard and vendor intent actions for Inputs Settings
+        String[] actions = {
+                "android.settings.TV_INPUT_SETTINGS",
+                "amazon.intent.action.INPUTS_SETTINGS",
+                "com.amazon.tv.settings.INPUTS_SETTINGS",
+                "com.android.tv.settings.action.INPUTS",
+                "com.android.tv.settings.action.SYSTEM_INPUTS",
+                "android.settings.INPUT_SETTINGS",
+                "com.amazon.tv.action.INPUT_CHOOSER",
+                "com.amazon.tv.action.SWITCH_INPUT",
+                "android.media.tv.action.VIEW_INPUTS",
+                "com.android.tv.action.VIEW_INPUTS"
+        };
+        for (String act : actions) {
+            try {
+                Intent intent = new Intent(act).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                List<ResolveInfo> receivers = pm.queryIntentActivities(intent, 0);
+                if (receivers != null) {
+                    for (ResolveInfo ri : receivers) {
+                        if (ri.activityInfo != null && !context.getPackageName().equals(ri.activityInfo.packageName)) {
+                            intent.setComponent(new ComponentName(ri.activityInfo.packageName, ri.activityInfo.name));
+                            context.startActivity(intent);
+                            return true;
+                        }
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+        }
+
+        // 2. Explicit component candidates for the Inputs section in native settings
+        String[] settingsInputsComponents = {
+                // AOSP & Google TV Settings - Inputs
+                "com.android.tv.settings/com.android.tv.settings.system.InputsActivity",
+                "com.android.tv.settings/.system.InputsActivity",
+                "com.android.tv.settings/com.android.tv.settings.inputs.InputsActivity",
+                "com.android.tv.settings/.inputs.InputsActivity",
+                "com.android.tv.settings/com.android.tv.settings.system.InputsSettingsActivity",
+                "com.google.android.tv.frameworkpackagestubs/com.google.android.tv.frameworkpackagestubs.InputActivity",
+
+                // Fire TV Settings - Inputs
+                "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.inputs.InputsActivity",
+                "com.amazon.tv.settings.v2/.inputs.InputsActivity",
+                "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.tv.inputs.InputsActivity",
+                "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.tv.system.InputsActivity",
+                "com.amazon.tv.settings.v2/.tv.system.InputsActivity",
+                "com.amazon.tv.settings/com.amazon.tv.settings.inputs.InputsActivity",
+                "com.amazon.tv.settings/.inputs.InputsActivity",
+                "com.amazon.tv.settings/com.amazon.tv.settings.tv.system.InputsActivity",
+                "com.amazon.tv.settings/com.amazon.tv.settings.tv.inputs.InputsActivity",
+                "com.amazon.tv.launcher/com.amazon.tv.launcher.inputs.InputsActivity",
+
+                // Fire TV Display & Sounds / Equipment & Input Control Settings
+                "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.tv.display_sounds.DisplayAndSoundsActivity",
+                "com.amazon.tv.settings.v2/.tv.display_sounds.DisplayAndSoundsActivity",
+                "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.equipmentcontrol.EquipmentControlActivity",
+                "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.tv.equipment.EquipmentActivity",
+                "com.amazon.tv.devicecontrolsettings/com.amazon.tv.devicecontrolsettings.screens.main_menu.OzOobeSettingsActivity",
+                "com.amazon.tv.devicecontrolsettings/.screens.main_menu.OzOobeSettingsActivity",
+                "com.amazon.tv.devicecontrol/com.amazon.tv.devicecontrol.DeviceControlActivity",
+                "com.amazon.tv.inputpreference/com.amazon.tv.inputpreference.player.InputChooserActivity",
+                "com.amazon.tv.inputpreference.service/com.amazon.tv.inputpreference.player.InputChooserActivity",
+                "com.amazon.tv.inputpreference/com.amazon.tv.inputpreference.player.InputTabActivity",
+                "com.amazon.tv.inputpreference.service/com.amazon.tv.inputpreference.player.InputTabActivity",
+
+                // Sony BRAVIA TV Settings - Inputs
+                "com.sony.dtv.settings/com.sony.dtv.settings.inputs.InputsActivity",
+                "com.sony.dtv.tvinput.sources/com.sony.dtv.tvinput.sources.MainActivity",
+                "com.sony.dtv.tvinput.externalinput/com.sony.dtv.tvinput.externalinput.MainActivity",
+                "com.sony.dtv.tvx/com.sony.dtv.tvx.MainActivity",
+
+                // TCL TV Settings - Inputs
+                "com.tcl.settings/com.tcl.settings.inputs.InputsActivity",
+                "com.tcl.settings/com.tcl.settings.ui.InputsActivity",
+                "com.tcl.suspension/com.tcl.suspension.ui.MainActivity",
+                "com.tcl.sourcemanager/com.tcl.sourcemanager.MainActivity",
+
+                // Hisense / VIDAA Settings - Inputs
+                "com.hisense.tv.inputs/com.hisense.tv.inputs.MainActivity",
+                "com.hisense.tv.settings/com.hisense.tv.settings.ui.MainActivity",
+
+                // Philips TV Settings - Inputs
+                "org.droidtv.settings/org.droidtv.settings.inputs.TvInputsActivity",
+                "org.droidtv.settings/org.droidtv.settings.inputs.ExternalInputsActivity",
+
+                // Xiaomi Mi TV Settings - Inputs
+                "com.xiaomi.mitv.settings/com.xiaomi.mitv.settings.source.SourceActivity",
+                "com.xiaomi.mitv.settings/com.xiaomi.mitv.settings.tv.SourceActivity",
+                "com.xiaomi.mitv.tvplayer/com.xiaomi.mitv.tvplayer.ActivityEntry",
+                "com.xiaomi.mitv.source/com.xiaomi.mitv.source.MainActivity"
+        };
+        for (String comp : settingsInputsComponents) {
+            ComponentName cn = ComponentName.unflattenFromString(comp);
+            if (cn != null) {
+                try {
+                    Intent intent = new Intent().setComponent(cn).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    intent.putExtra("category", "inputs");
+                    intent.putExtra(":settings:show_fragment", "com.android.tv.settings.system.InputsFragment");
+                    context.startActivity(intent);
+                    return true;
+                } catch (Exception ignored) {
+                }
+            }
+        }
+
+        // 3. Fallback to native settings menu with inputs category/fragment extras
+        Intent vendorSettings = vendorIntent(context);
+        if (vendorSettings != null) {
+            try {
+                vendorSettings.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                vendorSettings.putExtra("category", "inputs");
+                vendorSettings.putExtra(":settings:show_fragment", "com.android.tv.settings.system.InputsFragment");
+                context.startActivity(vendorSettings);
+                return true;
+            } catch (Exception ignored) {
+            }
+        }
+
+        try {
+            Intent mainSettings = intent(context, Settings.ACTION_SETTINGS);
+            mainSettings.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            mainSettings.putExtra("category", "inputs");
+            mainSettings.putExtra(":settings:show_fragment", "com.android.tv.settings.system.InputsFragment");
+            context.startActivity(mainSettings);
+            return true;
+        } catch (Exception ignored) {
+        }
+
+        return false;
+    }
 }

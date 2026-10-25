@@ -3155,83 +3155,28 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     /**
-     * Opens the TV's native input selection menu (Fire TV Quick Settings side panel, Google TV Dashboard,
-     * or vendor TV input chooser) without freezing the UI or returning to the home screen.
+     * Opens the inputs section of the native settings menu on the TV.
      */
     private boolean openNativeInputs() {
         HomeKeyService.allowStockLauncherUntil = SystemClock.uptimeMillis() + 60000;
 
-        // 1. Accessibility Quick Settings overlay: on Fire TV and Google TV, this opens the native side panel
-        // which prominently features the TV's native Inputs picker.
-        if (HomeKeyService.openQuickSettings()) {
+        // 1. Direct priority: Target the Inputs section of native settings
+        if (SystemSettings.launchInputsSettings(this)) {
             return true;
         }
 
-        // 2. Query system packages for standard TV input actions (excluding CleanYourTV itself)
-        String[] actions = {
-                "android.media.tv.action.VIEW_INPUTS",
-                "com.android.tv.action.VIEW_INPUTS",
-                "com.amazon.tv.action.INPUT_CHOOSER",
-                "amazon.intent.action.INPUTS_SETTINGS",
-                "com.amazon.tv.action.SWITCH_INPUT",
-                "android.settings.TV_INPUT_SETTINGS"
-        };
-        for (String act : actions) {
-            try {
-                Intent intent = new Intent(act).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                List<ResolveInfo> receivers = getPackageManager().queryIntentActivities(intent, 0);
-                if (receivers != null) {
-                    for (ResolveInfo ri : receivers) {
-                        if (ri.activityInfo != null && !getPackageName().equals(ri.activityInfo.packageName)) {
-                            intent.setComponent(new ComponentName(ri.activityInfo.packageName, ri.activityInfo.name));
-                            startActivity(intent);
-                            return true;
-                        }
-                    }
-                }
-            } catch (Exception ignored) {
-            }
-        }
-
-        // 3. Explicit known TV input activities (Fire TV, Android TV, Sony, TCL, Hisense, Philips, Xiaomi)
-        String[] comps = {
-                "com.amazon.tv.inputpreference/com.amazon.tv.inputpreference.player.InputChooserActivity",
-                "com.amazon.tv.inputpreference.service/com.amazon.tv.inputpreference.player.InputChooserActivity",
-                "com.amazon.tv.inputpreference/com.amazon.tv.inputpreference.player.InputTabActivity",
-                "com.amazon.tv.inputpreference.service/com.amazon.tv.inputpreference.player.InputTabActivity",
-                "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.inputs.InputsActivity",
-                "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.tv.display_sounds.DisplayAndSoundsActivity",
-                "com.amazon.tv.settings/com.amazon.tv.settings.inputs.InputsActivity",
-                "com.amazon.tv.launcher/com.amazon.tv.launcher.inputs.InputsActivity",
-                "com.android.tv.settings/com.android.tv.settings.inputs.InputsActivity",
-                "com.google.android.tv.frameworkpackagestubs/com.google.android.tv.frameworkpackagestubs.InputActivity",
-                "com.sony.dtv.tvinput.sources/com.sony.dtv.tvinput.sources.MainActivity",
-                "com.sony.dtv.tvx/com.sony.dtv.tvx.MainActivity",
-                "com.tcl.suspension/com.tcl.suspension.ui.MainActivity",
-                "com.tcl.sourcemanager/com.tcl.sourcemanager.MainActivity",
-                "com.hisense.tv.inputs/com.hisense.tv.inputs.MainActivity",
-                "org.droidtv.settings/org.droidtv.settings.inputs.TvInputsActivity",
-                "com.xiaomi.mitv.tvplayer/com.xiaomi.mitv.tvplayer.ActivityEntry",
-                "com.xiaomi.mitv.source/com.xiaomi.mitv.source.MainActivity"
-        };
-        for (String comp : comps) {
-            ComponentName cn = ComponentName.unflattenFromString(comp);
-            if (cn != null) {
-                try {
-                    startActivity(new Intent().setComponent(cn).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-                    return true;
-                } catch (Exception ignored) {
-                }
-            }
-        }
-
-        // 4. Source panel service if configured (e.g. Hisense / Vidda)
+        // 2. Source panel service if configured (e.g. Hisense / Vidda)
         if (!sourcePanelService.isEmpty()) {
             openSourcePanel();
             return true;
         }
 
-        // 5. Asynchronous key injection (KEYCODE_TV_INPUT = 178) in background thread (never blocking UI thread!)
+        // 3. Accessibility Quick Settings overlay fallback
+        if (HomeKeyService.openQuickSettings()) {
+            return true;
+        }
+
+        // 4. Asynchronous key injection (KEYCODE_TV_INPUT = 178) in background thread (never blocking UI thread!)
         new Thread(() -> {
             try {
                 Runtime.getRuntime().exec(new String[]{"input", "keyevent", "178"});
