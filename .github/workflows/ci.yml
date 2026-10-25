@@ -63,14 +63,7 @@ jobs:
         working-directory: launcher
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon testReleaseUnitTest lintRelease assembleRelease --stacktrace || {
-            echo "::error::Gradle build failed. Dumping error reports:"
-            for f in $(find app/build/reports -type f); do
-              echo "=== $f ==="
-              cat "$f"
-            done
-            exit 1
-          }
+          ./gradlew --no-daemon testReleaseUnitTest lintRelease assembleRelease
       - name: The launcher stays small
         run: |
           size=$(stat -c %s launcher/app/build/outputs/apk/release/app-release.apk)

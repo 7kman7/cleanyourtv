@@ -99,7 +99,7 @@ public final class ContinueWatching {
             try {
                 String appName = pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString();
                 long when = LastOpened.get(context, pkg);
-                String sub = when > 0 ? LastOpened.describe(context, when) : context.getString(R.string.dock_title_fallback);
+                String sub = when > 0 ? LastOpened.describe(context, when) : context.getString(R.string.continue_watching_title);
                 Drawable banner = loadBanner(pm, pkg);
                 Drawable icon = loadIcon(pm, pkg);
                 items.add(new Item(pkg, appName, sub, null, null, when, icon, banner));
