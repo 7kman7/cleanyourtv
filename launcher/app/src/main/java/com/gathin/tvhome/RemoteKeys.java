@@ -7,6 +7,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.media.AudioManager;
 import android.media.tv.TvContract;
+import android.net.Uri;
 import android.os.Build;
 import android.provider.Settings;
 import android.view.KeyEvent;
