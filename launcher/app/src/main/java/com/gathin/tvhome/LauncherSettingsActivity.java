@@ -277,11 +277,15 @@ public final class LauncherSettingsActivity extends Activity {
 
     private void showWallpaperPicker() {
         File dir = Config.dir(this);
-        List<File> images = WallpaperRotation.images(dir != null ? new File(dir, "wallpapers") : null);
+        List<File> loadedImages = WallpaperRotation.images(dir != null ? new File(dir, "wallpapers") : null);
         File single = dir != null ? new File(dir, Config.WALLPAPER_NAME) : null;
-        if (single != null && single.isFile() && single.length() > 0 && !images.contains(single)) {
-            images = new ArrayList<>(images);
-            images.add(0, single);
+        final List<File> images;
+        if (single != null && single.isFile() && single.length() > 0 && !loadedImages.contains(single)) {
+            List<File> withSingle = new ArrayList<>(loadedImages);
+            withSingle.add(0, single);
+            images = withSingle;
+        } else {
+            images = loadedImages;
         }
         String[] labels = new String[images.size() + 2];
         labels[0] = getString(R.string.wallpaper_theme_default);

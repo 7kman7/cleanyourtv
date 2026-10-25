@@ -113,8 +113,6 @@ final class SystemSettings {
         return null;
     }
 
-    private static boolean phairPlayWarmed = false;
-
     /** Attempts to keep PhairPlay's receiver service running in the background. */
     static void ensureAirPlayRunning(Context context) {
         Intent phairplay = phairPlayIntent(context);
