@@ -27,13 +27,13 @@ import android.view.ViewOutlineProvider;
 import android.view.animation.DecelerateInterpolator;
 import android.view.animation.OvershootInterpolator;
 import android.widget.FrameLayout;
+import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayList;
@@ -560,7 +560,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             header.setAllCaps(true);
             header.setFocusable(false);
             header.setFocusableInTouchMode(false);
-            return new HeaderViewHolder(header);
+            return new RecyclerView.ViewHolder(header) { };
         }
         if (viewType == VIEW_TYPE_RECENT_SHELF) {
             float density = ctx.getResources().getDisplayMetrics().density;
@@ -581,16 +581,24 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             header.setFocusableInTouchMode(false);
             shelfLayout.addView(header);
 
-            RecyclerView shelfList = new RecyclerView(ctx);
-            shelfList.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-            shelfList.setClipChildren(false);
-            shelfList.setClipToPadding(false);
-            shelfList.setOverScrollMode(View.OVER_SCROLL_NEVER);
-            shelfList.setLayoutManager(new LinearLayoutManager(ctx, LinearLayoutManager.HORIZONTAL, false));
-            shelfList.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
-            shelfLayout.addView(shelfList);
+            HorizontalScrollView scroller = new HorizontalScrollView(ctx);
+            scroller.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            scroller.setHorizontalScrollBarEnabled(false);
+            scroller.setOverScrollMode(View.OVER_SCROLL_NEVER);
+            scroller.setClipChildren(false);
+            scroller.setClipToPadding(false);
 
-            return new RecentShelfViewHolder(shelfLayout, shelfList, header);
+            LinearLayout container = new LinearLayout(ctx);
+            container.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            container.setOrientation(LinearLayout.HORIZONTAL);
+            container.setClipChildren(false);
+            container.setClipToPadding(false);
+            container.setPadding(Math.round(16 * density), 0, Math.round(16 * density), Math.round(12 * density));
+
+            scroller.addView(container);
+            shelfLayout.addView(scroller);
+
+            return new RecyclerView.ViewHolder(shelfLayout) { };
         }
         View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_app, parent, false);
         float density = parent.getResources().getDisplayMetrics().density;
@@ -631,11 +639,53 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         if (isLibraryAt(position)) return;
         Entry e = items.get(position);
         if (e.kind == Entry.HEADER) {
-            ((HeaderViewHolder) holder).title.setText(e.label);
+            ((TextView) holder.itemView).setText(e.label);
             return;
         }
         if (e.kind == Entry.RECENT_SHELF) {
-            ((RecentShelfViewHolder) holder).bind(e.shelfApps);
+            LinearLayout shelfLayout = (LinearLayout) holder.itemView;
+            HorizontalScrollView scroller = (HorizontalScrollView) shelfLayout.getChildAt(1);
+            LinearLayout container = (LinearLayout) scroller.getChildAt(0);
+            container.removeAllViews();
+            if (e.shelfApps != null) {
+                float density = ctx.getResources().getDisplayMetrics().density;
+                int width = shelfLayout.getWidth() > 0 ? shelfLayout.getWidth() : ctx.getResources().getDisplayMetrics().widthPixels;
+                int inner = width - Math.round(20 * density);
+                int w = tileWidthPx(inner, dockSize, density), h = tileHeightPx(w);
+
+                for (int i = 0; i < e.shelfApps.size(); i++) {
+                    Entry app = e.shelfApps.get(i);
+                    View v = LayoutInflater.from(ctx).inflate(R.layout.item_app, container, false);
+                    View card = v.findViewById(R.id.card);
+                    ViewGroup.LayoutParams cardLp = card.getLayoutParams();
+                    cardLp.width = w;
+                    cardLp.height = h;
+                    card.setLayoutParams(cardLp);
+                    View name = v.findViewById(R.id.name);
+                    ViewGroup.MarginLayoutParams nameLp = (ViewGroup.MarginLayoutParams) name.getLayoutParams();
+                    nameLp.width = w;
+                    nameLp.topMargin = h + Math.round(7 * density);
+                    name.setLayoutParams(nameLp);
+                    v.setLayoutParams(new LinearLayout.LayoutParams(w + Math.round(16 * density), ViewGroup.LayoutParams.WRAP_CONTENT));
+                    if (uniformTiles) {
+                        View icon = v.findViewById(R.id.icon);
+                        FrameLayout.LayoutParams iconLp = (FrameLayout.LayoutParams) icon.getLayoutParams();
+                        iconLp.width = iconLp.height = Math.round(h * ICON_SHARE);
+                        iconLp.bottomMargin = 0;
+                        icon.setLayoutParams(iconLp);
+                    }
+                    Holder hCard = new Holder(v, listener, animations, advancedEffects, reducedMotion, restNameAlpha, focusOvershoot);
+                    bindCard(hCard, app, true, i);
+                    hCard.card.setOnLongClickListener(vw -> {
+                        if (tileMenu) {
+                            listener.onTileLongPress(-1, vw);
+                            return true;
+                        }
+                        return false;
+                    });
+                    container.addView(v);
+                }
+            }
             return;
         }
         Holder h = (Holder) holder;
@@ -1197,103 +1247,6 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 if (focused && listener != null && pos != RecyclerView.NO_POSITION) {
                     listener.onTileFocused(pos, view);
                 }
-            });
-        }
-    }
-
-    static final class HeaderViewHolder extends RecyclerView.ViewHolder {
-        final TextView title;
-
-        HeaderViewHolder(@NonNull TextView title) {
-            super(title);
-            this.title = title;
-        }
-    }
-
-    final class RecentShelfViewHolder extends RecyclerView.ViewHolder {
-        final TextView title;
-        final RecyclerView shelf;
-        final RecentShelfAdapter adapter;
-
-        RecentShelfViewHolder(@NonNull View itemView, @NonNull RecyclerView shelf, @NonNull TextView title) {
-            super(itemView);
-            this.shelf = shelf;
-            this.title = title;
-            this.adapter = new RecentShelfAdapter();
-            this.shelf.setAdapter(adapter);
-        }
-
-        void bind(List<Entry> apps) {
-            adapter.setApps(apps);
-        }
-    }
-
-    final class RecentShelfAdapter extends RecyclerView.Adapter<Holder> {
-        private final List<Entry> shelfItems = new ArrayList<>();
-
-        void setApps(List<Entry> apps) {
-            shelfItems.clear();
-            if (apps != null) shelfItems.addAll(apps);
-            notifyDataSetChanged();
-        }
-
-        @Override
-        public int getItemCount() {
-            return shelfItems.size();
-        }
-
-        @NonNull
-        @Override
-        public Holder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_app, parent, false);
-            float density = parent.getResources().getDisplayMetrics().density;
-            int width = parent.getWidth() > 0 ? parent.getWidth() : parent.getMeasuredWidth();
-            if (width <= 0) width = ctx.getResources().getDisplayMetrics().widthPixels;
-            int inner = width - Math.round(20 * density);
-            int w = tileWidthPx(inner, dockSize, density), h = tileHeightPx(w);
-            View card = v.findViewById(R.id.card);
-            ViewGroup.LayoutParams cardLp = card.getLayoutParams();
-            cardLp.width = w;
-            cardLp.height = h;
-            card.setLayoutParams(cardLp);
-            View name = v.findViewById(R.id.name);
-            ViewGroup.MarginLayoutParams nameLp = (ViewGroup.MarginLayoutParams) name.getLayoutParams();
-            nameLp.width = w;
-            nameLp.topMargin = h + Math.round(7 * density);
-            name.setLayoutParams(nameLp);
-            v.setLayoutParams(new RecyclerView.LayoutParams(w + Math.round(16 * density), ViewGroup.LayoutParams.WRAP_CONTENT));
-            if (uniformTiles) {
-                View icon = v.findViewById(R.id.icon);
-                FrameLayout.LayoutParams iconLp = (FrameLayout.LayoutParams) icon.getLayoutParams();
-                iconLp.width = iconLp.height = Math.round(h * ICON_SHARE);
-                iconLp.bottomMargin = 0;
-                icon.setLayoutParams(iconLp);
-            }
-            return new Holder(v, listener, animations, advancedEffects, reducedMotion, restNameAlpha, focusOvershoot);
-        }
-
-        @Override
-        public void onBindViewHolder(@NonNull Holder h, int position) {
-            Entry e = shelfItems.get(position);
-            bindCard(h, e, true, position);
-            h.card.setOnLongClickListener(v -> {
-                if (tileMenu) {
-                    listener.onTileLongPress(-1, v);
-                    return true;
-                }
-                return false;
-            });
-            h.card.setOnKeyListener((v, keyCode, event) -> {
-                if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
-                if (keyCode == KeyEvent.KEYCODE_DPAD_UP || keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-                    int dir = keyCode == KeyEvent.KEYCODE_DPAD_UP ? View.FOCUS_UP : View.FOCUS_DOWN;
-                    View next = v.focusSearch(dir);
-                    if (next != null) {
-                        next.requestFocus();
-                        return true;
-                    }
-                }
-                return false;
             });
         }
     }
