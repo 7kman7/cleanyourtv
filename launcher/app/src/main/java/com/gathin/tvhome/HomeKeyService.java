@@ -40,6 +40,9 @@ import java.util.Set;
  */
 public class HomeKeyService extends AccessibilityService {
 
+    /** Active instance of the service when connected. */
+    public static volatile HomeKeyService instance;
+
     /** Expiration timestamp until which the stock launcher window is allowed before redirecting. */
     public static volatile long allowStockLauncherUntil = 0;
 
@@ -67,6 +70,7 @@ public class HomeKeyService extends AccessibilityService {
     @Override
     protected void onServiceConnected() {
         super.onServiceConnected();
+        instance = this;
         settingsScancodes = getResources().getIntArray(R.array.settings_key_scancodes);
         // The service is directBootAware: Android 11 skips a service that is not while the user is still
         // locked at boot, writes accessibility_enabled=0 and, on TCL G03 firmware, never binds it after the
@@ -99,10 +103,23 @@ public class HomeKeyService extends AccessibilityService {
 
     @Override
     public void onDestroy() {
+        if (instance == this) instance = null;
         stopWaitingForUnlock();
         if (gamepads != null) gamepads.stop();
         if (consumeVolumeKeys) VolumeKeys.stop();
         super.onDestroy();
+    }
+
+    /** Triggers the system's quick settings overlay (Inputs, Sleep, Settings on Fire TV & Google TV). */
+    public static boolean openQuickSettings() {
+        HomeKeyService service = instance;
+        if (service != null) {
+            try {
+                return service.performGlobalAction(GLOBAL_ACTION_QUICK_SETTINGS);
+            } catch (Exception ignored) {
+            }
+        }
+        return false;
     }
 
     private void loadConfig() {
@@ -214,7 +231,8 @@ public class HomeKeyService extends AccessibilityService {
 
         if (p.equals("com.apple.airplay.amazon.airplay") || p.equals("com.amazon.cast.sink")
                 || p.contains("airplay") || p.contains("phairplay") || p.contains("cast") || p.contains("mirror")
-                || p.contains("inputpreference") || p.contains("tvinput") || p.contains("livetv")) {
+                || p.contains("inputpreference") || p.contains("tvinput") || p.contains("livetv")
+                || p.contains("devicecontrol") || p.contains("quicksettings") || p.contains("equipmentcontrol")) {
             return;
         }
 
@@ -231,7 +249,8 @@ public class HomeKeyService extends AccessibilityService {
                         || c.contains("dialog") || c.contains("prompt") || c.contains("overlay")
                         || c.contains("input") || c.contains("source") || c.contains("hdmi")
                         || c.contains("tuner") || c.contains("tvplayer") || c.contains("livetv")
-                        || c.contains("channel") || c.contains("switcher")) {
+                        || c.contains("channel") || c.contains("switcher")
+                        || c.contains("quick") || c.contains("sidebar") || c.contains("panel")) {
                     return;
                 }
             }

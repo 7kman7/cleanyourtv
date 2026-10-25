@@ -244,14 +244,24 @@ final class RemoteKeys {
         }
         String inputId = inputId(pkg);
         if (inputId != null) {
-            // The same passthrough URI the Inputs menu opens, which the Live TV app handles.
-            Intent view = new Intent(Intent.ACTION_VIEW)
-                    .setDataAndType(TvContract.buildChannelUriForPassthroughInput(inputId),
-                            "vnd.android.cursor.item/channel")
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            Uri uri = null;
             try {
-                ctx.startActivity(view);
-            } catch (ActivityNotFoundException ignored) {
+                uri = TvContract.buildChannelUriForPassthroughInput(inputId);
+            } catch (Exception ignored) {
+            }
+            if (uri != null) {
+                try {
+                    ctx.startActivity(new Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                    return;
+                } catch (Exception ignored) {
+                }
+                try {
+                    ctx.startActivity(new Intent(Intent.ACTION_VIEW)
+                            .setDataAndType(uri, "vnd.android.cursor.item/channel")
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                    return;
+                } catch (Exception ignored) {
+                }
             }
             return;
         }

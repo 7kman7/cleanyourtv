@@ -2848,37 +2848,54 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         else if (lower.contains("av") || lower.contains("composite")) keyEvent = 247;
         if (keyEvent != 0) {
             try {
-                Runtime.getRuntime().exec(new String[]{"input", "keyevent", String.valueOf(keyEvent)});
+                Process p = Runtime.getRuntime().exec(new String[]{"su", "-c", "input keyevent " + keyEvent});
+                if (p.waitFor() == 0) return;
+            } catch (Exception ignored) {
+            }
+            try {
+                Process p = Runtime.getRuntime().exec(new String[]{"input", "keyevent", String.valueOf(keyEvent)});
+                if (p.waitFor() == 0) return;
             } catch (Exception ignored) {
             }
         }
 
         TvInputManager tim = (TvInputManager) getSystemService(TV_INPUT_SERVICE);
         String resolvedId = inputId;
+        TvInputInfo matchedInfo = null;
         if (tim != null) {
             try {
                 for (TvInputInfo info : tim.getTvInputList()) {
                     String id = info.getId();
                     String norm = id.toLowerCase(Locale.ROOT);
                     String target = inputId.toLowerCase(Locale.ROOT);
-                    if (id.equals(inputId) || norm.contains(target)) {
+                    if (id.equals(inputId)) {
                         resolvedId = id;
+                        matchedInfo = info;
+                        break;
+                    }
+                    if (norm.contains(target)) {
+                        resolvedId = id;
+                        matchedInfo = info;
                         break;
                     }
                     if ("hdmi1".equals(target) && (norm.contains("hw1") || norm.contains("hdmi1") || norm.contains("hdmi 1") || norm.contains("hdmi_1"))) {
                         resolvedId = id;
+                        matchedInfo = info;
                         break;
                     }
                     if ("hdmi2".equals(target) && (norm.contains("hw2") || norm.contains("hdmi2") || norm.contains("hdmi 2") || norm.contains("hdmi_2"))) {
                         resolvedId = id;
+                        matchedInfo = info;
                         break;
                     }
                     if ("hdmi3".equals(target) && (norm.contains("hw3") || norm.contains("hdmi3") || norm.contains("hdmi 3") || norm.contains("hdmi_3"))) {
                         resolvedId = id;
+                        matchedInfo = info;
                         break;
                     }
                     if ("av".equals(target) && (norm.contains("av") || norm.contains("composite"))) {
                         resolvedId = id;
+                        matchedInfo = info;
                         break;
                     }
                 }
@@ -2887,12 +2904,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
 
         String sourceId = resolvedId;
-        if (tim != null) {
+        if (tim != null && matchedInfo == null) {
             try {
-                TvInputInfo info = tim.getTvInputInfo(resolvedId);
-                if (info != null && info.getParentId() != null) sourceId = info.getParentId();
+                matchedInfo = tim.getTvInputInfo(resolvedId);
             } catch (RuntimeException ignored) {
             }
+        }
+        if (matchedInfo != null && matchedInfo.getParentId() != null) {
+            sourceId = matchedInfo.getParentId();
         }
         Integer source = mappedSource(sourceId);
         if (source != null && source >= 0 && !inputAction.isEmpty()) {
@@ -2904,22 +2923,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 // fall through to the standard way
             }
         }
-        // Fire TV specific input intents
-        String[] amazonInputIntents = {
-                "com.amazon.tv.action.SWITCH_INPUT",
-                "amazon.intent.action.INPUTS_SETTINGS"
-        };
-        for (String act : amazonInputIntents) {
-            try {
-                startActivity(new Intent(act).putExtra("input_id", resolvedId).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-                return;
-            } catch (Exception ignored) {
-            }
-        }
 
-        boolean isFireTv = getPackageManager().getLaunchIntentForPackage("com.amazon.tv.launcher") != null
-                || getPackageManager().getLaunchIntentForPackage("com.amazon.firehomestarter") != null;
-        if (!isFireTv) {
+        // Standard Android TIF passthrough intent without forcing MIME type "vnd.android.cursor.item/channel" (which opens Live TV guide)
+        if (matchedInfo != null && matchedInfo.isPassthroughInput()) {
             Uri uri = null;
             try {
                 uri = TvContract.buildChannelUriForPassthroughInput(resolvedId);
@@ -2927,24 +2933,36 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             }
             if (uri != null) {
                 Intent view = (inputUriScheme.isEmpty()
-                        ? new Intent(Intent.ACTION_VIEW).setDataAndType(uri, "vnd.android.cursor.item/channel")
+                        ? new Intent(Intent.ACTION_VIEW, uri)
                         : new Intent(Intent.ACTION_VIEW, uri.buildUpon().scheme(inputUriScheme).build()))
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                String[] nonAmazonTvPkgs = {"com.google.android.tv", "com.android.tv"};
-                for (String pkg : nonAmazonTvPkgs) {
-                    try {
-                        startActivity(new Intent(view).setPackage(pkg));
-                        return;
-                    } catch (Exception ignored) {
-                    }
-                }
                 try {
-                    startActivity(view);
-                    return;
+                    List<ResolveInfo> receivers = getPackageManager().queryIntentActivities(view, 0);
+                    if (receivers != null && !receivers.isEmpty()) {
+                        startActivity(view);
+                        return;
+                    }
                 } catch (Exception ignored) {
                 }
             }
         }
+
+        // Fire TV specific input intents
+        String[] amazonInputIntents = {
+                "com.amazon.tv.action.SWITCH_INPUT",
+                "amazon.intent.action.INPUTS_SETTINGS"
+        };
+        for (String act : amazonInputIntents) {
+            try {
+                Intent actIntent = new Intent(act).putExtra("input_id", resolvedId).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                if (getPackageManager().queryIntentActivities(actIntent, 0).size() > 0) {
+                    startActivity(actIntent);
+                    return;
+                }
+            } catch (Exception ignored) {
+            }
+        }
+
         openFireTvInputs();
     }
 
@@ -3124,11 +3142,20 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     private void openFireTvInputs() {
         HomeKeyService.allowStockLauncherUntil = SystemClock.uptimeMillis() + 15000;
+
+        // 1. Accessibility Quick Settings (triggers Fire TV & Google TV native Quick Settings overlay with Inputs)
+        if (HomeKeyService.openQuickSettings()) {
+            return;
+        }
+
+        // 2. Explicit component candidates for Fire TV & Android TV input selection
         String[] comps = {
                 "com.amazon.tv.inputpreference.service/com.amazon.tv.inputpreference.player.InputChooserActivity",
                 "com.amazon.tv.inputpreference.service/com.amazon.tv.inputpreference.player.InputTabActivity",
                 "com.amazon.tv.inputpreference/com.amazon.tv.inputpreference.player.InputChooserActivity",
                 "com.amazon.tv.inputpreference/com.amazon.tv.inputpreference.player.InputTabActivity",
+                "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.tv.display_sounds.DisplayAndSoundsActivity",
+                "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.tv.device.DeviceActivity",
                 "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.inputs.InputsActivity",
                 "com.amazon.tv.settings/com.amazon.tv.settings.inputs.InputsActivity",
                 "com.android.tv.settings/com.android.tv.settings.inputs.InputsActivity",
@@ -3144,31 +3171,41 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 }
             }
         }
+
+        // 3. System and Fire TV action intents
         String[] actions = {
+                "android.media.tv.action.VIEW_INPUTS",
+                "com.android.tv.action.VIEW_INPUTS",
                 "com.amazon.tv.action.INPUT_CHOOSER",
                 "amazon.intent.action.INPUTS_SETTINGS",
-                "com.amazon.tv.action.SWITCH_INPUT"
+                "com.amazon.tv.action.SWITCH_INPUT",
+                Settings.ACTION_SETTINGS
         };
         for (String act : actions) {
             try {
-                startActivity(new Intent(act).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-                return;
+                Intent actIntent = new Intent(act).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                if (getPackageManager().queryIntentActivities(actIntent, 0).size() > 0) {
+                    startActivity(actIntent);
+                    return;
+                }
             } catch (Exception ignored) {
             }
         }
-        boolean isFireTv = getPackageManager().getLaunchIntentForPackage("com.amazon.tv.launcher") != null
-                || getPackageManager().getLaunchIntentForPackage("com.amazon.firehomestarter") != null;
-        if (!isFireTv) {
-            try {
-                startActivity(new Intent("android.media.tv.action.VIEW_INPUTS").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-                return;
-            } catch (Exception ignored) {
-            }
-        }
+
+        // 4. Keyevent 178 (KEYCODE_TV_INPUT) via su or local shell
         try {
-            Runtime.getRuntime().exec(new String[]{"input", "keyevent", "178"});
+            Process p = Runtime.getRuntime().exec(new String[]{"su", "-c", "input keyevent 178"});
+            if (p.waitFor() == 0) return;
         } catch (Exception ignored) {
         }
+        try {
+            Process p = Runtime.getRuntime().exec(new String[]{"input", "keyevent", "178"});
+            if (p.waitFor() == 0) return;
+        } catch (Exception ignored) {
+        }
+
+        // 5. Fallback notice so user is never left without feedback
+        Toast.makeText(this, "Could not open inputs menu. Please use the Input button on your remote.", Toast.LENGTH_LONG).show();
     }
 
     private PopupWindow glassPopup(View panel, int width) {

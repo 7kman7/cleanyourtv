@@ -24,6 +24,10 @@
     <!-- YaOS (Yandex TV OS): HDMI, AV and the tuner all play in com.yandex.tv.live, whose activities require
          this permission (protection level normal, so it is granted at install). Ignored on other TVs. -->
     <uses-permission android:name="yandex.tv.permission.ACCESS_TV_SOURCE" />
+    <uses-permission android:name="android.permission.INJECT_EVENTS"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="QueryAllPackagesPermission" />
 
     <!-- Android 11+ package visibility: lets the launcher list the TV apps it shows as tiles, and the
          apps that declare a module card (docs/specs/card.md). -->
@@ -80,6 +84,30 @@
         <package android:name="com.phairplay.firetv" />
         <package android:name="com.phairplay.googletv" />
         <package android:name="com.phairplay" />
+        <package android:name="com.amazon.tv.inputpreference.service" />
+        <package android:name="com.amazon.tv.inputpreference" />
+        <package android:name="com.amazon.tv.devicecontrol" />
+        <package android:name="com.amazon.tv.settings" />
+        <package android:name="com.android.tv.settings" />
+        <intent>
+            <action android:name="android.media.tv.action.VIEW_INPUTS" />
+        </intent>
+        <intent>
+            <action android:name="com.android.tv.action.VIEW_INPUTS" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="content" android:host="android.media.tv" />
+        </intent>
+        <intent>
+            <action android:name="com.amazon.tv.action.INPUT_CHOOSER" />
+        </intent>
+        <intent>
+            <action android:name="amazon.intent.action.INPUTS_SETTINGS" />
+        </intent>
+        <intent>
+            <action android:name="com.amazon.tv.action.SWITCH_INPUT" />
+        </intent>
         <!-- Coocaa OS sources for the Inputs menu (coocaa_sources); see CoocaaSources. -->
         <provider android:authorities="com.skyworth.tv.provider" />
         <provider android:authorities="com.skyworth.tv.sdk.provider" />
