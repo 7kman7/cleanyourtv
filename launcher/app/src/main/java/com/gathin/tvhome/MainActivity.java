@@ -694,7 +694,15 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (btnLauncherSettings != null) {
             btnLauncherSettings.setVisibility(View.GONE);
         }
-        btnInputs.setOnClickListener(v -> showInputs());
+        btnInputs.setOnClickListener(v -> {
+            if (!openNativeInputs()) {
+                showInputs();
+            }
+        });
+        btnInputs.setOnLongClickListener(v -> {
+            showInputs();
+            return true;
+        });
         btnWifi.setOnClickListener(v -> openNetworkPill());
         btnWifi.setOnLongClickListener(v -> {
             open(systemIntent(Settings.ACTION_WIFI_SETTINGS));
@@ -860,7 +868,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private boolean openInputsIfAsked(Intent intent) {
         if (intent == null || !ACTION_VIEW_INPUTS.equals(intent.getAction())) return false;
         setIntent(new Intent(Intent.ACTION_MAIN));
-        root.post(this::showInputs);
+        root.post(this::openNativeInputs);
         return true;
     }
 
@@ -2836,9 +2844,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
      *  throws SecurityException, which used to take Home down with it (YaOS before the manifest asked
      *  for ACCESS_TV_SOURCE). */
     private void openInput(String inputId) {
-        HomeKeyService.allowStockLauncherUntil = SystemClock.uptimeMillis() + 15000;
+        HomeKeyService.allowStockLauncherUntil = SystemClock.uptimeMillis() + 60000;
 
-        // Try keyevent shortcut first if applicable
+        // Try keyevent shortcut asynchronously in background thread
         int keyEvent = 0;
         String lower = inputId.toLowerCase(Locale.ROOT);
         if (lower.contains("hdmi1") || lower.contains("hdmi 1") || lower.contains("hw1")) keyEvent = 243;
@@ -2847,16 +2855,17 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         else if (lower.contains("hdmi4") || lower.contains("hdmi 4") || lower.contains("hw4")) keyEvent = 246;
         else if (lower.contains("av") || lower.contains("composite")) keyEvent = 247;
         if (keyEvent != 0) {
-            try {
-                Process p = Runtime.getRuntime().exec(new String[]{"su", "-c", "input keyevent " + keyEvent});
-                if (p.waitFor() == 0) return;
-            } catch (Exception ignored) {
-            }
-            try {
-                Process p = Runtime.getRuntime().exec(new String[]{"input", "keyevent", String.valueOf(keyEvent)});
-                if (p.waitFor() == 0) return;
-            } catch (Exception ignored) {
-            }
+            final int code = keyEvent;
+            new Thread(() -> {
+                try {
+                    Runtime.getRuntime().exec(new String[]{"input", "keyevent", String.valueOf(code)});
+                } catch (Throwable ignored) {
+                }
+                try {
+                    Runtime.getRuntime().exec(new String[]{"su", "-c", "input keyevent " + code});
+                } catch (Throwable ignored) {
+                }
+            }).start();
         }
 
         TvInputManager tim = (TvInputManager) getSystemService(TV_INPUT_SERVICE);
@@ -2938,9 +2947,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 try {
                     List<ResolveInfo> receivers = getPackageManager().queryIntentActivities(view, 0);
-                    if (receivers != null && !receivers.isEmpty()) {
-                        startActivity(view);
-                        return;
+                    if (receivers != null) {
+                        for (ResolveInfo ri : receivers) {
+                            if (ri.activityInfo != null && !getPackageName().equals(ri.activityInfo.packageName)) {
+                                view.setComponent(new ComponentName(ri.activityInfo.packageName, ri.activityInfo.name));
+                                startActivity(view);
+                                return;
+                            }
+                        }
                     }
                 } catch (Exception ignored) {
                 }
@@ -2955,15 +2969,21 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         for (String act : amazonInputIntents) {
             try {
                 Intent actIntent = new Intent(act).putExtra("input_id", resolvedId).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                if (getPackageManager().queryIntentActivities(actIntent, 0).size() > 0) {
-                    startActivity(actIntent);
-                    return;
+                List<ResolveInfo> receivers = getPackageManager().queryIntentActivities(actIntent, 0);
+                if (receivers != null) {
+                    for (ResolveInfo ri : receivers) {
+                        if (ri.activityInfo != null && !getPackageName().equals(ri.activityInfo.packageName)) {
+                            actIntent.setComponent(new ComponentName(ri.activityInfo.packageName, ri.activityInfo.name));
+                            startActivity(actIntent);
+                            return;
+                        }
+                    }
                 }
             } catch (Exception ignored) {
             }
         }
 
-        openFireTvInputs();
+        openNativeInputs();
     }
 
     /** Dropdown menu under the Inputs pill: HDMI ports (with connection state), AV and Live TV. */
@@ -3115,20 +3135,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
         if (rows.getChildCount() > 0) {
             addSeparator(rows);
-            addInputRow(rows, popup, R.drawable.ic_input, getString(R.string.inputs), -1, () -> {
-                HomeKeyService.allowStockLauncherUntil = SystemClock.uptimeMillis() + 15000;
-                openFireTvInputs();
-            });
+            addInputRow(rows, popup, R.drawable.ic_input, getString(R.string.inputs), -1, this::openNativeInputs);
         } else {
             addInputRow(rows, popup, R.drawable.ic_input, "HDMI 1", -1, () -> openInput("HDMI1"));
             addInputRow(rows, popup, R.drawable.ic_input, "HDMI 2", -1, () -> openInput("HDMI2"));
             addInputRow(rows, popup, R.drawable.ic_input, "HDMI 3", -1, () -> openInput("HDMI3"));
             addInputRow(rows, popup, R.drawable.ic_av, "AV", -1, () -> openInput("AV"));
             addSeparator(rows);
-            addInputRow(rows, popup, R.drawable.ic_input, getString(R.string.inputs), -1, () -> {
-                HomeKeyService.allowStockLauncherUntil = SystemClock.uptimeMillis() + 15000;
-                openFireTvInputs();
-            });
+            addInputRow(rows, popup, R.drawable.ic_input, getString(R.string.inputs), -1, this::openNativeInputs);
         }
 
         // Fit the widest row: TVs that report a status on every port (Sony) would otherwise squeeze the names out.
@@ -3140,72 +3154,100 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         rows.getChildAt(0).requestFocus();
     }
 
-    private void openFireTvInputs() {
-        HomeKeyService.allowStockLauncherUntil = SystemClock.uptimeMillis() + 15000;
+    /**
+     * Opens the TV's native input selection menu (Fire TV Quick Settings side panel, Google TV Dashboard,
+     * or vendor TV input chooser) without freezing the UI or returning to the home screen.
+     */
+    private boolean openNativeInputs() {
+        HomeKeyService.allowStockLauncherUntil = SystemClock.uptimeMillis() + 60000;
 
-        // 1. Accessibility Quick Settings (triggers Fire TV & Google TV native Quick Settings overlay with Inputs)
+        // 1. Accessibility Quick Settings overlay: on Fire TV and Google TV, this opens the native side panel
+        // which prominently features the TV's native Inputs picker.
         if (HomeKeyService.openQuickSettings()) {
-            return;
+            return true;
         }
 
-        // 2. Explicit component candidates for Fire TV & Android TV input selection
-        String[] comps = {
-                "com.amazon.tv.inputpreference.service/com.amazon.tv.inputpreference.player.InputChooserActivity",
-                "com.amazon.tv.inputpreference.service/com.amazon.tv.inputpreference.player.InputTabActivity",
-                "com.amazon.tv.inputpreference/com.amazon.tv.inputpreference.player.InputChooserActivity",
-                "com.amazon.tv.inputpreference/com.amazon.tv.inputpreference.player.InputTabActivity",
-                "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.tv.display_sounds.DisplayAndSoundsActivity",
-                "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.tv.device.DeviceActivity",
-                "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.inputs.InputsActivity",
-                "com.amazon.tv.settings/com.amazon.tv.settings.inputs.InputsActivity",
-                "com.android.tv.settings/com.android.tv.settings.inputs.InputsActivity",
-                "com.amazon.tv.launcher/com.amazon.tv.launcher.inputs.InputsActivity"
-        };
-        for (String comp : comps) {
-            ComponentName cn = ComponentName.unflattenFromString(comp);
-            if (cn != null) {
-                try {
-                    startActivity(new Intent().setComponent(cn).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-                    return;
-                } catch (Exception ignored) {
-                }
-            }
-        }
-
-        // 3. System and Fire TV action intents
+        // 2. Query system packages for standard TV input actions (excluding CleanYourTV itself)
         String[] actions = {
                 "android.media.tv.action.VIEW_INPUTS",
                 "com.android.tv.action.VIEW_INPUTS",
                 "com.amazon.tv.action.INPUT_CHOOSER",
                 "amazon.intent.action.INPUTS_SETTINGS",
                 "com.amazon.tv.action.SWITCH_INPUT",
-                Settings.ACTION_SETTINGS
+                "android.settings.TV_INPUT_SETTINGS"
         };
         for (String act : actions) {
             try {
-                Intent actIntent = new Intent(act).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                if (getPackageManager().queryIntentActivities(actIntent, 0).size() > 0) {
-                    startActivity(actIntent);
-                    return;
+                Intent intent = new Intent(act).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                List<ResolveInfo> receivers = getPackageManager().queryIntentActivities(intent, 0);
+                if (receivers != null) {
+                    for (ResolveInfo ri : receivers) {
+                        if (ri.activityInfo != null && !getPackageName().equals(ri.activityInfo.packageName)) {
+                            intent.setComponent(new ComponentName(ri.activityInfo.packageName, ri.activityInfo.name));
+                            startActivity(intent);
+                            return true;
+                        }
+                    }
                 }
             } catch (Exception ignored) {
             }
         }
 
-        // 4. Keyevent 178 (KEYCODE_TV_INPUT) via su or local shell
-        try {
-            Process p = Runtime.getRuntime().exec(new String[]{"su", "-c", "input keyevent 178"});
-            if (p.waitFor() == 0) return;
-        } catch (Exception ignored) {
-        }
-        try {
-            Process p = Runtime.getRuntime().exec(new String[]{"input", "keyevent", "178"});
-            if (p.waitFor() == 0) return;
-        } catch (Exception ignored) {
+        // 3. Explicit known TV input activities (Fire TV, Android TV, Sony, TCL, Hisense, Philips, Xiaomi)
+        String[] comps = {
+                "com.amazon.tv.inputpreference/com.amazon.tv.inputpreference.player.InputChooserActivity",
+                "com.amazon.tv.inputpreference.service/com.amazon.tv.inputpreference.player.InputChooserActivity",
+                "com.amazon.tv.inputpreference/com.amazon.tv.inputpreference.player.InputTabActivity",
+                "com.amazon.tv.inputpreference.service/com.amazon.tv.inputpreference.player.InputTabActivity",
+                "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.inputs.InputsActivity",
+                "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.tv.display_sounds.DisplayAndSoundsActivity",
+                "com.amazon.tv.settings/com.amazon.tv.settings.inputs.InputsActivity",
+                "com.amazon.tv.launcher/com.amazon.tv.launcher.inputs.InputsActivity",
+                "com.android.tv.settings/com.android.tv.settings.inputs.InputsActivity",
+                "com.google.android.tv.frameworkpackagestubs/com.google.android.tv.frameworkpackagestubs.InputActivity",
+                "com.sony.dtv.tvinput.sources/com.sony.dtv.tvinput.sources.MainActivity",
+                "com.sony.dtv.tvx/com.sony.dtv.tvx.MainActivity",
+                "com.tcl.suspension/com.tcl.suspension.ui.MainActivity",
+                "com.tcl.sourcemanager/com.tcl.sourcemanager.MainActivity",
+                "com.hisense.tv.inputs/com.hisense.tv.inputs.MainActivity",
+                "org.droidtv.settings/org.droidtv.settings.inputs.TvInputsActivity",
+                "com.xiaomi.mitv.tvplayer/com.xiaomi.mitv.tvplayer.ActivityEntry",
+                "com.xiaomi.mitv.source/com.xiaomi.mitv.source.MainActivity"
+        };
+        for (String comp : comps) {
+            ComponentName cn = ComponentName.unflattenFromString(comp);
+            if (cn != null) {
+                try {
+                    startActivity(new Intent().setComponent(cn).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                    return true;
+                } catch (Exception ignored) {
+                }
+            }
         }
 
-        // 5. Fallback notice so user is never left without feedback
-        Toast.makeText(this, "Could not open inputs menu. Please use the Input button on your remote.", Toast.LENGTH_LONG).show();
+        // 4. Source panel service if configured (e.g. Hisense / Vidda)
+        if (!sourcePanelService.isEmpty()) {
+            openSourcePanel();
+            return true;
+        }
+
+        // 5. Asynchronous key injection (KEYCODE_TV_INPUT = 178) in background thread (never blocking UI thread!)
+        new Thread(() -> {
+            try {
+                Runtime.getRuntime().exec(new String[]{"input", "keyevent", "178"});
+            } catch (Throwable ignored) {
+            }
+            try {
+                Runtime.getRuntime().exec(new String[]{"su", "-c", "input keyevent 178"});
+            } catch (Throwable ignored) {
+            }
+        }).start();
+
+        return false;
+    }
+
+    private void openFireTvInputs() {
+        openNativeInputs();
     }
 
     private PopupWindow glassPopup(View panel, int width) {
@@ -3274,8 +3316,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         View panel = getLayoutInflater().inflate(R.layout.popup_inputs, root, false);
         LinearLayout rows = panel.findViewById(R.id.rows);
         PopupWindow popup = glassPopup(panel, (int) (220 * density));
-        // Inputs opens its own list once this one has closed.
-        if (showInputsMenuRow) addInputRow(rows, popup, R.drawable.ic_input, getString(R.string.inputs), -1, () -> root.post(this::showInputs));
+        // Inputs opens the TV's native input menu once this one has closed.
+        if (showInputsMenuRow) addInputRow(rows, popup, R.drawable.ic_input, getString(R.string.inputs), -1, () -> root.post(this::openNativeInputs));
         addInputRow(rows, popup, R.drawable.ic_wifi, getString(R.string.quick_network), -1, this::openNetworkPill);
         CharSequence network = wifiIconOnly ? btnWifi.getContentDescription() : btnWifi.getText();
         if (!TextUtils.isEmpty(network)) {

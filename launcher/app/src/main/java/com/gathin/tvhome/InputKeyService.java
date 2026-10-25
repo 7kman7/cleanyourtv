@@ -4,10 +4,12 @@ import android.accessibilityservice.AccessibilityService;
 import android.content.ActivityNotFoundException;
 import android.content.ComponentName;
 import android.content.Intent;
+import android.content.pm.ResolveInfo;
 import android.os.SystemClock;
 import android.view.KeyEvent;
 import android.view.accessibility.AccessibilityEvent;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -72,20 +74,37 @@ public class InputKeyService extends AccessibilityService {
                 holdAppKeys.get(event.getKeyCode()))) return true;
         if (!isInputKey(event.getKeyCode())) return false;
         if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
-            HomeKeyService.allowStockLauncherUntil = SystemClock.uptimeMillis() + 15000;
-            Intent show = new Intent(this, MainActivity.class)
-                    .setAction(MainActivity.ACTION_VIEW_INPUTS)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            try {
-                startActivity(show);
+            HomeKeyService.allowStockLauncherUntil = SystemClock.uptimeMillis() + 60000;
+            if (HomeKeyService.openQuickSettings()) {
                 return true;
-            } catch (Exception ignored) {
+            }
+            String[] actions = {
+                    "android.media.tv.action.VIEW_INPUTS",
+                    "com.android.tv.action.VIEW_INPUTS",
+                    "com.amazon.tv.action.INPUT_CHOOSER",
+                    "amazon.intent.action.INPUTS_SETTINGS"
+            };
+            for (String act : actions) {
+                try {
+                    Intent actIntent = new Intent(act).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    List<ResolveInfo> receivers = getPackageManager().queryIntentActivities(actIntent, 0);
+                    if (receivers != null) {
+                        for (ResolveInfo ri : receivers) {
+                            if (ri.activityInfo != null && !getPackageName().equals(ri.activityInfo.packageName)) {
+                                actIntent.setComponent(new ComponentName(ri.activityInfo.packageName, ri.activityInfo.name));
+                                startActivity(actIntent);
+                                return true;
+                            }
+                        }
+                    }
+                } catch (Exception ignored) {
+                }
             }
             String[] comps = {
-                    "com.amazon.tv.inputpreference.service/com.amazon.tv.inputpreference.player.InputChooserActivity",
-                    "com.amazon.tv.inputpreference.service/com.amazon.tv.inputpreference.player.InputTabActivity",
                     "com.amazon.tv.inputpreference/com.amazon.tv.inputpreference.player.InputChooserActivity",
+                    "com.amazon.tv.inputpreference.service/com.amazon.tv.inputpreference.player.InputChooserActivity",
                     "com.amazon.tv.inputpreference/com.amazon.tv.inputpreference.player.InputTabActivity",
+                    "com.amazon.tv.inputpreference.service/com.amazon.tv.inputpreference.player.InputTabActivity",
                     "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.inputs.InputsActivity"
             };
             for (String comp : comps) {
@@ -98,14 +117,13 @@ public class InputKeyService extends AccessibilityService {
                     }
                 }
             }
-            boolean isFireTv = getPackageManager().getLaunchIntentForPackage("com.amazon.tv.launcher") != null
-                    || getPackageManager().getLaunchIntentForPackage("com.amazon.firehomestarter") != null;
-            if (!isFireTv) {
-                try {
-                    startActivity(new Intent(ACTION_VIEW_INPUTS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-                    return true;
-                } catch (Exception ignored) {
-                }
+            Intent show = new Intent(this, MainActivity.class)
+                    .setAction(MainActivity.ACTION_VIEW_INPUTS)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            try {
+                startActivity(show);
+                return true;
+            } catch (Exception ignored) {
             }
         }
         return true;

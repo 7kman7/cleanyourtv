@@ -3,6 +3,7 @@ package com.gathin.tvhome;
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.SystemClock;
 
 /**
  * Answers com.android.tv.action.VIEW_INPUTS, the system input switcher that the remote's Input button turns into
@@ -14,6 +15,7 @@ public class InputsRequestActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        HomeKeyService.allowStockLauncherUntil = SystemClock.uptimeMillis() + 60000;
         startActivity(new Intent(this, MainActivity.class)
                 .setAction(MainActivity.ACTION_VIEW_INPUTS)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));

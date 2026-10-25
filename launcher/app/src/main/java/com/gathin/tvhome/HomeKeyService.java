@@ -225,6 +225,9 @@ public class HomeKeyService extends AccessibilityService {
     public void onAccessibilityEvent(AccessibilityEvent event) {
         // stock_home_redirect: the firmware turned the stock launcher back on and its home screen came up.
         if (!isOverrideEnabled() || event.getEventType() != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return;
+        if (SystemClock.uptimeMillis() < allowStockLauncherUntil) {
+            return;
+        }
         CharSequence pkg = event.getPackageName();
         if (pkg == null) return;
         String p = pkg.toString();
@@ -232,7 +235,8 @@ public class HomeKeyService extends AccessibilityService {
         if (p.equals("com.apple.airplay.amazon.airplay") || p.equals("com.amazon.cast.sink")
                 || p.contains("airplay") || p.contains("phairplay") || p.contains("cast") || p.contains("mirror")
                 || p.contains("inputpreference") || p.contains("tvinput") || p.contains("livetv")
-                || p.contains("devicecontrol") || p.contains("quicksettings") || p.contains("equipmentcontrol")) {
+                || p.contains("devicecontrol") || p.contains("quicksettings") || p.contains("equipmentcontrol")
+                || p.contains("settings") || p.contains("inputs") || p.contains("source") || p.contains("chooser")) {
             return;
         }
 
@@ -250,7 +254,12 @@ public class HomeKeyService extends AccessibilityService {
                         || c.contains("input") || c.contains("source") || c.contains("hdmi")
                         || c.contains("tuner") || c.contains("tvplayer") || c.contains("livetv")
                         || c.contains("channel") || c.contains("switcher")
-                        || c.contains("quick") || c.contains("sidebar") || c.contains("panel")) {
+                        || c.contains("quick") || c.contains("sidebar") || c.contains("panel")
+                        || c.contains("sidepanel") || c.contains("chooser") || c.contains("player")
+                        || c.contains("surface") || c.contains("view") || c.contains("widget")
+                        || c.contains("window") || c.contains("menu") || c.contains("bar")
+                        || c.contains("device") || c.contains("control") || c.contains("systemui")
+                        || c.contains("scrim") || c.contains("popup")) {
                     return;
                 }
             }
@@ -262,10 +271,11 @@ public class HomeKeyService extends AccessibilityService {
                     || text.contains("pin") || desc.contains("pin")
                     || text.contains("input") || desc.contains("input")
                     || text.contains("source") || desc.contains("source")
-                    || text.contains("hdmi") || desc.contains("hdmi")) {
-                return;
-            }
-            if (SystemClock.uptimeMillis() < allowStockLauncherUntil) {
+                    || text.contains("hdmi") || desc.contains("hdmi")
+                    || text.contains("quick") || desc.contains("quick")
+                    || text.contains("settings") || desc.contains("settings")
+                    || text.contains("sleep") || desc.contains("sleep")
+                    || text.contains("screen") || desc.contains("screen")) {
                 return;
             }
             openHome();
