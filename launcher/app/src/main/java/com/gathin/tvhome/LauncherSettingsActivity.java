@@ -103,7 +103,6 @@ public final class LauncherSettingsActivity extends Activity {
         animations = config.animations;
         advancedEffects = config.animations && config.advancedEffects;
         chosenTheme = config.chosenTheme;
-        recentApps = config.recentApps;
 
         int[] ids = {R.id.columns4, R.id.columns5, R.id.columns6, R.id.columns7};
         for (int i = 0; i < ids.length; i++) {

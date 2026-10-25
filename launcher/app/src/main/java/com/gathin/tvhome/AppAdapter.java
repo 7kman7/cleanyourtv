@@ -767,9 +767,6 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     /** A position focus can land on: an empty dock slot gives the last dock app. */
     int focusablePosition(int position) {
         if (position < 0 || position >= items.size()) return 0;
-        if (items.get(position).kind == Entry.HEADER) {
-            return Math.min(position + 1, items.size() - 1);
-        }
         return DockSlots.focusable(position, docked, emptySlots);
     }
 

@@ -644,7 +644,7 @@ final class Config {
             glowStyle = GLOW_HORIZON;
         } else if (THEME_SCENES.equals(chosenTheme)) {
             background = 0xFF080C14;
-            wallpaperRotationMinutes = 60;
+            rotationMinutes = 60;
             wallpaperCaptions = true;
             cinematic = true;
             dockGlass = true;

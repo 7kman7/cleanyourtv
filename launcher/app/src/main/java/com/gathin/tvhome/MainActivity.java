@@ -552,7 +552,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             public int getSpanSize(int position) {
                 if (!singleRow && adapter != null) {
                     int vt = adapter.getItemViewType(position);
-                    if (vt == AppAdapter.VIEW_TYPE_LIBRARY || vt == AppAdapter.VIEW_TYPE_SECTION_HEADER || vt == AppAdapter.VIEW_TYPE_RECENT_SHELF) {
+                    if (vt == AppAdapter.VIEW_TYPE_LIBRARY) {
                         return COLUMNS;
                     }
                 }
