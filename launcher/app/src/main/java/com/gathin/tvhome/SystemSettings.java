@@ -52,4 +52,87 @@ final class SystemSettings {
         Intent info = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + pkg));
         return context.getPackageManager().resolveActivity(info, PackageManager.MATCH_DEFAULT_ONLY) != null ? info : null;
     }
+
+    /** Opens the TV's application manager (where non-responding apps can be force-stopped, uninstalled, etc.). */
+    static Intent manageAppsIntent(Context context) {
+        PackageManager pm = context.getPackageManager();
+        Intent manage = new Intent(Settings.ACTION_MANAGE_APPLICATIONS_SETTINGS);
+        if (pm.resolveActivity(manage, PackageManager.MATCH_DEFAULT_ONLY) != null) {
+            return manage;
+        }
+        Intent appSettings = new Intent(Settings.ACTION_APPLICATION_SETTINGS);
+        if (pm.resolveActivity(appSettings, PackageManager.MATCH_DEFAULT_ONLY) != null) {
+            return appSettings;
+        }
+        String[] fireTvAppManagers = {
+                "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.application.ApplicationsActivity",
+                "com.amazon.tv.launcher/com.amazon.tv.launcher.ui.ApplicationsActivity"
+        };
+        for (String s : fireTvAppManagers) {
+            ComponentName cn = ComponentName.unflattenFromString(s);
+            if (cn != null) {
+                try {
+                    pm.getPackageInfo(cn.getPackageName(), 0);
+                    return new Intent().setComponent(cn);
+                } catch (PackageManager.NameNotFoundException ignored) {
+                }
+            }
+        }
+        return intent(context, Settings.ACTION_SETTINGS);
+    }
+
+    /** Checks whether an AirPlay receiver or casting service is installed / available on the TV. */
+    static boolean isAirPlayAvailable(Context context) {
+        PackageManager pm = context.getPackageManager();
+        try {
+            pm.getPackageInfo("com.apple.airplay.amazon.airplay", 0);
+            return true;
+        } catch (PackageManager.NameNotFoundException ignored) {
+        }
+        try {
+            pm.getPackageInfo("com.amazon.cast.sink", 0);
+            return true;
+        } catch (PackageManager.NameNotFoundException ignored) {
+        }
+        Intent cast = new Intent("android.settings.CAST_SETTINGS");
+        return pm.resolveActivity(cast, PackageManager.MATCH_DEFAULT_ONLY) != null;
+    }
+
+    /** Opens AirPlay configuration or the AirPlay receiver. */
+    static Intent airPlayIntent(Context context) {
+        PackageManager pm = context.getPackageManager();
+        Intent appleLaunch = pm.getLaunchIntentForPackage("com.apple.airplay.amazon.airplay");
+        if (appleLaunch != null) return appleLaunch;
+
+        String[] airPlayComponents = {
+                "com.amazon.tv.launcher/com.amazon.tv.launcher.ui.AirPlaySettingsActivity",
+                "com.apple.airplay.amazon.airplay/com.apple.airplay.amazon.airplay.AirPlayActivity",
+                "com.amazon.cast.sink/com.amazon.cast.sink.MainActivity"
+        };
+        for (String c : airPlayComponents) {
+            ComponentName cn = ComponentName.unflattenFromString(c);
+            if (cn != null) {
+                try {
+                    pm.getPackageInfo(cn.getPackageName(), 0);
+                    return new Intent().setComponent(cn);
+                } catch (PackageManager.NameNotFoundException ignored) {
+                }
+            }
+        }
+
+        Intent castSink = pm.getLaunchIntentForPackage("com.amazon.cast.sink");
+        if (castSink != null) return castSink;
+
+        Intent castSettings = new Intent("android.settings.CAST_SETTINGS");
+        if (pm.resolveActivity(castSettings, PackageManager.MATCH_DEFAULT_ONLY) != null) {
+            return castSettings;
+        }
+
+        Intent displaySettings = new Intent(Settings.ACTION_DISPLAY_SETTINGS);
+        if (pm.resolveActivity(displaySettings, PackageManager.MATCH_DEFAULT_ONLY) != null) {
+            return displaySettings;
+        }
+
+        return intent(context, Settings.ACTION_SETTINGS);
+    }
 }

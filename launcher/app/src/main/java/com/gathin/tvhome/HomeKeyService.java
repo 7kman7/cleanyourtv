@@ -186,13 +186,6 @@ public class HomeKeyService extends AccessibilityService {
             }
             return false;
         }
-        if (event.getKeyCode() == KeyEvent.KEYCODE_BACK && allowStockLauncherUntil > 0) {
-            allowStockLauncherUntil = 0;
-            if (event.getAction() == KeyEvent.ACTION_DOWN) {
-                openHome();
-            }
-            return true;
-        }
         if (event.getKeyCode() != KeyEvent.KEYCODE_ALL_APPS) return false;
         if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
             Intent home = new Intent(Intent.ACTION_MAIN)
@@ -219,6 +212,11 @@ public class HomeKeyService extends AccessibilityService {
         if (pkg == null) return;
         String p = pkg.toString();
 
+        if (p.equals("com.apple.airplay.amazon.airplay") || p.equals("com.amazon.cast.sink")
+                || p.contains("airplay") || p.contains("cast") || p.contains("mirror")) {
+            return;
+        }
+
         boolean isStock = p.equals("com.amazon.tv.launcher") || p.equals("com.amazon.firehomestarter")
                 || (!stockHome.isEmpty() && stockHome.contains(p));
 
@@ -227,9 +225,16 @@ public class HomeKeyService extends AccessibilityService {
             if (cls != null) {
                 String c = cls.toString().toLowerCase();
                 if (c.contains("settings") || c.contains("preferences") || c.contains("airplay")
-                        || c.contains("cast") || c.contains("mirror")) {
+                        || c.contains("cast") || c.contains("mirror") || c.contains("pin")
+                        || c.contains("code") || c.contains("passcode") || c.contains("dialog")
+                        || c.contains("prompt") || c.contains("overlay")) {
                     return;
                 }
+            }
+            CharSequence text = event.getText() != null ? event.getText().toString().toLowerCase() : "";
+            CharSequence desc = event.getContentDescription() != null ? event.getContentDescription().toString().toLowerCase() : "";
+            if (text.contains("airplay") || desc.contains("airplay") || text.contains("passcode") || desc.contains("passcode") || text.contains("pin") || desc.contains("pin")) {
+                return;
             }
             if (SystemClock.uptimeMillis() < allowStockLauncherUntil) {
                 return;

@@ -3165,10 +3165,16 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         addSettingsMenuRow(rows, popup, R.string.reorder, this::toggleReorder);
         if (dockRow) addSettingsMenuRow(rows, popup, R.string.dock_edit, this::startDockEdit);
         if (appLibraryEnabled) addSettingsMenuRow(rows, popup, R.string.app_library, this::onLibraryRequested);
-        addSettingsMenuRow(rows, popup, R.string.settings, () -> {
+        addSettingsMenuRow(rows, popup, R.string.manage_apps, () -> {
             HomeKeyService.allowStockLauncherUntil = android.os.SystemClock.uptimeMillis() + 60000;
-            open(systemIntent(Settings.ACTION_SETTINGS));
+            open(SystemSettings.manageAppsIntent(this));
         });
+        if (SystemSettings.isAirPlayAvailable(this)) {
+            addSettingsMenuRow(rows, popup, R.string.airplay, () -> {
+                HomeKeyService.allowStockLauncherUntil = android.os.SystemClock.uptimeMillis() + 60000;
+                open(SystemSettings.airPlayIntent(this));
+            });
+        }
         if (SystemSettings.vendorIntent(this) != null) {
             addSettingsMenuRow(rows, popup, R.string.native_settings, () -> {
                 HomeKeyService.allowStockLauncherUntil = android.os.SystemClock.uptimeMillis() + 60000;
@@ -3195,7 +3201,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         String key = adapter.keyAt(position);
         String pkg = adapter.packageAt(position);
         // Empty dock slots and the Default-home tile carry the launcher's own package: no menu for them.
-        if (key == null || pkg == null || pkg.equals(getPackageName())) return;
+        if (key == null || pkg == null || (pkg.equals(getPackageName()) && !key.endsWith(".AirPlay"))) return;
         View panel = getLayoutInflater().inflate(R.layout.popup_inputs, root, false);
         LinearLayout rows = panel.findViewById(R.id.rows);
         PopupWindow popup = glassPopup(panel, (int) (200 * density));

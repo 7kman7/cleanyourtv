@@ -34,6 +34,7 @@ public final class LauncherSettingsActivity extends Activity {
     private TextView openOnStartChoice;
     private TextView overrideLauncherChoice;
     private TextView startAtBootChoice;
+    private TextView moduleCardsChoice;
     private int columns;
     private int rowsBelowDock;
     private int dockOpacity;
@@ -41,6 +42,7 @@ public final class LauncherSettingsActivity extends Activity {
     private boolean advancedEffects;
     private boolean overrideLauncher;
     private boolean startAtBoot;
+    private boolean moduleCards;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -148,12 +150,21 @@ public final class LauncherSettingsActivity extends Activity {
             changed();
             refresh();
         });
+        moduleCards = choices.getBoolean("module_cards", config.moduleCards);
+        moduleCardsChoice = findViewById(R.id.moduleCardsChoice);
+        moduleCardsChoice.setOnClickListener(v -> {
+            moduleCards = !moduleCards;
+            choices.edit().putBoolean("module_cards", moduleCards).apply();
+            changed();
+            refresh();
+        });
         followThemeChoice = findViewById(R.id.followThemeChoice);
         followThemeChoice.setOnClickListener(v -> {
             if (!hasOnTvChoices()) return;
             choices.edit().remove("columns").remove(Config.ROWS_BELOW_DOCK_KEY).remove("animations")
                     .remove("advanced_effects").remove(Config.WALLPAPER_CHOICE_KEY)
-                    .remove(Config.DOCK_OPACITY_KEY).remove(OpenOnStart.KEY).commit();
+                    .remove(Config.DOCK_OPACITY_KEY).remove(OpenOnStart.KEY)
+                    .remove("override_launcher").remove("start_at_boot").remove("module_cards").commit();
             Config current = Config.load(this);
             columns = current.columns;
             rowsBelowDock = current.rowsBelowDock;
@@ -331,6 +342,8 @@ public final class LauncherSettingsActivity extends Activity {
                 getString(overrideLauncher ? R.string.on : R.string.off)));
         startAtBootChoice.setText(getString(R.string.run_at_startup_state,
                 getString(startAtBoot ? R.string.on : R.string.off)));
+        moduleCardsChoice.setText(getString(R.string.module_cards_state,
+                getString(moduleCards ? R.string.on : R.string.off)));
         followThemeChoice.setSelected(!hasOnTvChoices());
     }
 
@@ -339,7 +352,7 @@ public final class LauncherSettingsActivity extends Activity {
                 || choices.contains("animations") || choices.contains("advanced_effects")
                 || choices.contains(Config.WALLPAPER_CHOICE_KEY) || choices.contains(Config.DOCK_OPACITY_KEY)
                 || choices.contains(OpenOnStart.KEY) || choices.contains("override_launcher")
-                || choices.contains("start_at_boot");
+                || choices.contains("start_at_boot") || choices.contains("module_cards");
     }
 
     private void open(Intent intent) {

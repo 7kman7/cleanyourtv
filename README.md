@@ -574,7 +574,8 @@ and a wallpaper.
   `launcher_settings_button` a click opens those instead and the menu leaves the row out), **Native settings**
   where the TV ships a settings app of its own beside Android's - Xiaomi China, TCL/FFALCON and Fire OS are
   in `settings_fallback_components` - because that app holds pages Android's has no row for, such as
-  Xiaomi's Account & Security with the ADB switch; **Module cards** with `module_cards`; **Edit dock** with
+  Xiaomi's Account & Security with the ADB switch; **Manage installed applications** to force-stop or inspect apps;
+  **AirPlay & HomeKit** to configure casting; **App library**; **Module cards** with `module_cards`; **Edit dock** with
   `dock_row`; and **Reorder apps**. The launcher's own page has these rows, top to bottom:
   - **Reorder apps**, only with `launcher_settings_button`: OK picks an app up, the arrows move it, Back
     places it, and Back again finishes.
@@ -590,6 +591,9 @@ and a wallpaper.
     time Home comes up after the TV starts. Once per boot, so Home and Back still reach the launcher.
   - **Follow theme (reset on-TV choices)**, which clears every choice above. Pushing or resetting a theme
     clears them too.
+  - **Override current launcher** intercepts the stock launcher with zero flicker.
+  - **Run at startup** ensures CleanYourTV opens at boot.
+  - **Module cards** enables rich dynamic cards from supported apps.
   - **Choose default home** opens Android's home picker, and **TV system settings** the TV's own settings
     page.
 - **Change the default home:** Launcher settings and the optional Default-home tile

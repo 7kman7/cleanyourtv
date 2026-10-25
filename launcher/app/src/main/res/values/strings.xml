@@ -153,4 +153,8 @@
     <string name="override_launcher_help" translatable="false">Intercepts the Home button with zero flicker on Fire TV and locked launchers</string>
     <string name="run_at_startup_state" translatable="false">Run at startup: %1$s</string>
     <string name="run_at_startup_help" translatable="false">Automatically opens CleanYourTV when the TV turns on</string>
+    <string name="manage_apps">Manage installed applications</string>
+    <string name="airplay">AirPlay &amp; HomeKit</string>
+    <string name="module_cards_state" translatable="false">Module cards: %1$s</string>
+    <string name="module_cards_help" translatable="false">Enables rich dynamic preview cards from supported TV apps</string>
 </resources>

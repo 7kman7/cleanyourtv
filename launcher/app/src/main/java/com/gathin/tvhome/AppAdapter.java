@@ -64,7 +64,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     }
 
     static final class Entry {
-        static final int APP = 0, HOME_SETTINGS = 1, CARD = 2, EMPTY = 3;
+        static final int APP = 0, HOME_SETTINGS = 1, CARD = 2, EMPTY = 3, AIRPLAY = 4;
 
         final int kind;
         final String label;
@@ -369,6 +369,22 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 fresh.add(new Entry("Fire TV Home", cn, null, stockIcon));
             }
         }
+        // AirPlay tile:
+        if (SystemSettings.isAirPlayAvailable(ctx)) {
+            boolean hasAirPlay = false;
+            for (Entry e : fresh) {
+                if ("com.apple.airplay.amazon.airplay".equals(e.pkg) || "AirPlay".equalsIgnoreCase(e.label)) {
+                    hasAirPlay = true;
+                    break;
+                }
+            }
+            if (!hasAirPlay) {
+                Drawable airplayIcon = ctx.getDrawable(R.drawable.ic_airplay);
+                fresh.add(new Entry(Entry.AIRPLAY, "AirPlay",
+                        new ComponentName(ctx.getPackageName(), "com.gathin.tvhome.AirPlay"),
+                        null, airplayIcon, null, 0));
+            }
+        }
         docked = 0;
         while (docked < fresh.size() && isDocked(fresh.get(docked))) docked++;
         emptySlots = dockRow && !reordering ? DockSlots.empty(docked, dockSize, fresh.size(), fillDock) : 0;
@@ -540,6 +556,21 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     /** Opens the tile's activity by explicit component, with no extras: a card can name nothing else. */
     private void launch(Entry e) {
+        if (e.kind == Entry.AIRPLAY) {
+            HomeKeyService.allowStockLauncherUntil = android.os.SystemClock.uptimeMillis() + 60000;
+            Intent airplayIntent = SystemSettings.airPlayIntent(ctx);
+            if (airplayIntent != null) {
+                try {
+                    ctx.startActivity(airplayIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                } catch (Exception ex) {
+                    Toast.makeText(ctx, "Could not open AirPlay", Toast.LENGTH_SHORT).show();
+                }
+            }
+            return;
+        }
+        if ("com.apple.airplay.amazon.airplay".equals(e.pkg) || "com.amazon.cast.sink".equals(e.pkg)) {
+            HomeKeyService.allowStockLauncherUntil = android.os.SystemClock.uptimeMillis() + 60000;
+        }
         if ("com.amazon.tv.launcher".equals(e.pkg)) {
             HomeKeyService.allowStockLauncherUntil = android.os.SystemClock.uptimeMillis() + 10000;
             Intent stockIntent = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).setPackage("com.amazon.tv.launcher");
