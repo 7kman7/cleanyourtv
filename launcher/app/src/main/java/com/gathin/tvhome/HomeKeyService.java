@@ -167,8 +167,10 @@ public class HomeKeyService extends AccessibilityService {
         if (RemoteKeys.handle(this, event, appKeys.get(event.getKeyCode()),
                 holdAppKeys.get(event.getKeyCode()))) return true;
         if (event.getKeyCode() == KeyEvent.KEYCODE_HOME && !stockHome.isEmpty()) {
-            redirectHomeKey(event);
-            return false;
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                openHome();
+            }
+            return true;
         }
         if (event.getKeyCode() != KeyEvent.KEYCODE_ALL_APPS) return false;
         if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
@@ -192,8 +194,11 @@ public class HomeKeyService extends AccessibilityService {
     public void onAccessibilityEvent(AccessibilityEvent event) {
         // stock_home_redirect: the firmware turned the stock launcher back on and its home screen came up.
         if (stockHome.isEmpty() || event.getEventType() != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return;
+        CharSequence pkg = event.getPackageName();
         CharSequence cls = event.getClassName();
-        if (cls != null && stockHome.contains(cls.toString())) openHome();
+        if (pkg != null && (pkg.equals("com.amazon.tv.launcher") || (cls != null && stockHome.contains(cls.toString())))) {
+            openHome();
+        }
     }
 
     /** How long after boot the first bind still counts as "at boot" for probeAtBoot. */
@@ -240,8 +245,9 @@ public class HomeKeyService extends AccessibilityService {
     }
 
     private void openHome() {
-        startActivity(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).setPackage(getPackageName())
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED));
+        Intent home = new Intent(this, MainActivity.class)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_NO_ANIMATION);
+        startActivity(home);
     }
 
     @Override
