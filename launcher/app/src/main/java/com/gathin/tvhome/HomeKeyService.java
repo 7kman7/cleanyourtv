@@ -213,7 +213,7 @@ public class HomeKeyService extends AccessibilityService {
         String p = pkg.toString();
 
         if (p.equals("com.apple.airplay.amazon.airplay") || p.equals("com.amazon.cast.sink")
-                || p.contains("airplay") || p.contains("cast") || p.contains("mirror")) {
+                || p.contains("airplay") || p.contains("phairplay") || p.contains("cast") || p.contains("mirror")) {
             return;
         }
 
@@ -225,15 +225,18 @@ public class HomeKeyService extends AccessibilityService {
             if (cls != null) {
                 String c = cls.toString().toLowerCase();
                 if (c.contains("settings") || c.contains("preferences") || c.contains("airplay")
-                        || c.contains("cast") || c.contains("mirror") || c.contains("pin")
-                        || c.contains("code") || c.contains("passcode") || c.contains("dialog")
-                        || c.contains("prompt") || c.contains("overlay")) {
+                        || c.contains("phairplay") || c.contains("cast") || c.contains("mirror")
+                        || c.contains("pin") || c.contains("code") || c.contains("passcode")
+                        || c.contains("dialog") || c.contains("prompt") || c.contains("overlay")) {
                     return;
                 }
             }
             String text = event.getText() != null ? event.getText().toString().toLowerCase() : "";
             String desc = event.getContentDescription() != null ? event.getContentDescription().toString().toLowerCase() : "";
-            if (text.contains("airplay") || desc.contains("airplay") || text.contains("passcode") || desc.contains("passcode") || text.contains("pin") || desc.contains("pin")) {
+            if (text.contains("airplay") || desc.contains("airplay")
+                    || text.contains("phairplay") || desc.contains("phairplay")
+                    || text.contains("passcode") || desc.contains("passcode")
+                    || text.contains("pin") || desc.contains("pin")) {
                 return;
             }
             if (SystemClock.uptimeMillis() < allowStockLauncherUntil) {

@@ -75,6 +75,9 @@
         <package android:name="com.amazon.tv.settings.v2" />
         <package android:name="com.apple.airplay.amazon.airplay" />
         <package android:name="com.amazon.cast.sink" />
+        <package android:name="com.phairplay.firetv" />
+        <package android:name="com.phairplay.googletv" />
+        <package android:name="com.phairplay" />
         <!-- Coocaa OS sources for the Inputs menu (coocaa_sources); see CoocaaSources. -->
         <provider android:authorities="com.skyworth.tv.provider" />
         <provider android:authorities="com.skyworth.tv.sdk.provider" />

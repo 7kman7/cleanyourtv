@@ -11,6 +11,7 @@ import android.content.SharedPreferences;
 public class BootReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
+        SystemSettings.ensureAirPlayRunning(context);
         SharedPreferences prefs = context.getSharedPreferences(Config.SETTINGS_NAME, Context.MODE_PRIVATE);
         if (prefs.getBoolean("start_at_boot", true)) {
             Intent home = new Intent(context, MainActivity.class)

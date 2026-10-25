@@ -373,7 +373,9 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         if (SystemSettings.isAirPlayAvailable(ctx)) {
             boolean hasAirPlay = false;
             for (Entry e : fresh) {
-                if ("com.apple.airplay.amazon.airplay".equals(e.pkg) || "AirPlay".equalsIgnoreCase(e.label)) {
+                if ("com.apple.airplay.amazon.airplay".equals(e.pkg)
+                        || (e.pkg != null && e.pkg.toLowerCase().contains("phairplay"))
+                        || "AirPlay".equalsIgnoreCase(e.label)) {
                     hasAirPlay = true;
                     break;
                 }
@@ -568,7 +570,8 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             }
             return;
         }
-        if ("com.apple.airplay.amazon.airplay".equals(e.pkg) || "com.amazon.cast.sink".equals(e.pkg)) {
+        if ("com.apple.airplay.amazon.airplay".equals(e.pkg) || "com.amazon.cast.sink".equals(e.pkg)
+                || (e.pkg != null && e.pkg.toLowerCase().contains("phairplay"))) {
             HomeKeyService.allowStockLauncherUntil = android.os.SystemClock.uptimeMillis() + 60000;
         }
         if ("com.amazon.tv.launcher".equals(e.pkg)) {

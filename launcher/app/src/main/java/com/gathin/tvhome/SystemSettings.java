@@ -82,8 +82,61 @@ final class SystemSettings {
         return intent(context, Settings.ACTION_SETTINGS);
     }
 
+    /** Returns the launch intent for PhairPlay if installed, or null. */
+    static Intent phairPlayIntent(Context context) {
+        PackageManager pm = context.getPackageManager();
+        String[] packages = {
+                "com.phairplay.firetv",
+                "com.phairplay.googletv",
+                "com.phairplay"
+        };
+        for (String p : packages) {
+            Intent launch = pm.getLaunchIntentForPackage(p);
+            if (launch != null) return launch;
+        }
+        Intent query = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER);
+        for (ResolveInfo ri : pm.queryIntentActivities(query, 0)) {
+            if (ri.activityInfo != null && ri.activityInfo.packageName.toLowerCase().contains("phairplay")) {
+                Intent launch = pm.getLaunchIntentForPackage(ri.activityInfo.packageName);
+                if (launch != null) return launch;
+                return new Intent().setComponent(new ComponentName(ri.activityInfo.packageName, ri.activityInfo.name));
+            }
+        }
+        Intent queryNormal = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER);
+        for (ResolveInfo ri : pm.queryIntentActivities(queryNormal, 0)) {
+            if (ri.activityInfo != null && ri.activityInfo.packageName.toLowerCase().contains("phairplay")) {
+                Intent launch = pm.getLaunchIntentForPackage(ri.activityInfo.packageName);
+                if (launch != null) return launch;
+                return new Intent().setComponent(new ComponentName(ri.activityInfo.packageName, ri.activityInfo.name));
+            }
+        }
+        return null;
+    }
+
+    /** Attempts to keep PhairPlay's receiver service running in the background. */
+    static void ensureAirPlayRunning(Context context) {
+        Intent phairplay = phairPlayIntent(context);
+        if (phairplay != null) {
+            String pkg = phairplay.getComponent() != null ? phairplay.getComponent().getPackageName()
+                    : (phairplay.getPackage() != null ? phairplay.getPackage() : "com.phairplay.firetv");
+            String[] serviceClasses = {
+                    "com.phairplay.service.PhairPlayService",
+                    "com.phairplay.PhairPlayService"
+            };
+            for (String cls : serviceClasses) {
+                Intent svc = new Intent().setComponent(new ComponentName(pkg, cls));
+                try {
+                    context.startService(svc);
+                    return;
+                } catch (Exception ignored) {
+                }
+            }
+        }
+    }
+
     /** Checks whether an AirPlay receiver or casting service is installed / available on the TV. */
     static boolean isAirPlayAvailable(Context context) {
+        if (phairPlayIntent(context) != null) return true;
         PackageManager pm = context.getPackageManager();
         try {
             pm.getPackageInfo("com.apple.airplay.amazon.airplay", 0);
@@ -102,10 +155,19 @@ final class SystemSettings {
     /** Opens AirPlay configuration or the AirPlay receiver. */
     static Intent airPlayIntent(Context context) {
         PackageManager pm = context.getPackageManager();
+
+        Intent phairplay = phairPlayIntent(context);
+        if (phairplay != null) return phairplay;
+
         Intent appleLaunch = pm.getLaunchIntentForPackage("com.apple.airplay.amazon.airplay");
         if (appleLaunch != null) return appleLaunch;
 
+        Intent castSink = pm.getLaunchIntentForPackage("com.amazon.cast.sink");
+        if (castSink != null) return castSink;
+
         String[] airPlayComponents = {
+                "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.display.DisplayActivity",
+                "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.MainActivity",
                 "com.amazon.tv.launcher/com.amazon.tv.launcher.ui.AirPlaySettingsActivity",
                 "com.apple.airplay.amazon.airplay/com.apple.airplay.amazon.airplay.AirPlayActivity",
                 "com.amazon.cast.sink/com.amazon.cast.sink.MainActivity"
@@ -113,16 +175,12 @@ final class SystemSettings {
         for (String c : airPlayComponents) {
             ComponentName cn = ComponentName.unflattenFromString(c);
             if (cn != null) {
-                try {
-                    pm.getPackageInfo(cn.getPackageName(), 0);
-                    return new Intent().setComponent(cn);
-                } catch (PackageManager.NameNotFoundException ignored) {
+                Intent testIntent = new Intent().setComponent(cn);
+                if (pm.resolveActivity(testIntent, PackageManager.MATCH_DEFAULT_ONLY) != null) {
+                    return testIntent;
                 }
             }
         }
-
-        Intent castSink = pm.getLaunchIntentForPackage("com.amazon.cast.sink");
-        if (castSink != null) return castSink;
 
         Intent castSettings = new Intent("android.settings.CAST_SETTINGS");
         if (pm.resolveActivity(castSettings, PackageManager.MATCH_DEFAULT_ONLY) != null) {
