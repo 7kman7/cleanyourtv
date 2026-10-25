@@ -148,4 +148,9 @@
     <!-- Cinematic top shelf (cinematic_home): the line under the focused dock app's name; %1$s is when it was
          last opened, e.g. "5 minutes ago" or "yesterday, 9:40 pm". -->
     <string name="last_opened">Last opened %1$s</string>
+
+    <string name="override_launcher_state" translatable="false">Override current launcher: %1$s</string>
+    <string name="override_launcher_help" translatable="false">Intercepts the Home button with zero flicker on Fire TV and locked launchers</string>
+    <string name="run_at_startup_state" translatable="false">Run at startup: %1$s</string>
+    <string name="run_at_startup_help" translatable="false">Automatically opens CleanYourTV when the TV turns on</string>
 </resources>

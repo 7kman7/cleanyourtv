@@ -145,6 +145,11 @@ public class HomeKeyService extends AccessibilityService {
         return false;
     }
 
+    private boolean isOverrideEnabled() {
+        return getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE)
+                .getBoolean("override_launcher", true);
+    }
+
     @Override
     protected boolean onKeyEvent(KeyEvent event) {
         if (consumeVolumeKeys && VolumeKeys.handle(this, event)) return true;
@@ -167,10 +172,13 @@ public class HomeKeyService extends AccessibilityService {
         if (RemoteKeys.handle(this, event, appKeys.get(event.getKeyCode()),
                 holdAppKeys.get(event.getKeyCode()))) return true;
         if (event.getKeyCode() == KeyEvent.KEYCODE_HOME && !stockHome.isEmpty()) {
-            if (event.getAction() == KeyEvent.ACTION_DOWN) {
-                openHome();
+            if (isOverrideEnabled()) {
+                if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                    openHome();
+                }
+                return true;
             }
-            return true;
+            return false;
         }
         if (event.getKeyCode() != KeyEvent.KEYCODE_ALL_APPS) return false;
         if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
@@ -193,7 +201,7 @@ public class HomeKeyService extends AccessibilityService {
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
         // stock_home_redirect: the firmware turned the stock launcher back on and its home screen came up.
-        if (stockHome.isEmpty() || event.getEventType() != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return;
+        if (!isOverrideEnabled() || stockHome.isEmpty() || event.getEventType() != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return;
         CharSequence pkg = event.getPackageName();
         CharSequence cls = event.getClassName();
         if (pkg != null && (pkg.equals("com.amazon.tv.launcher") || (cls != null && stockHome.contains(cls.toString())))) {
@@ -213,6 +221,10 @@ public class HomeKeyService extends AccessibilityService {
         SharedPreferences prefs = getSharedPreferences("boot", MODE_PRIVATE);
         if (!firstBindAfterBoot(boot, prefs.getInt("probe_boot", -1), SystemClock.elapsedRealtime())) return;
         prefs.edit().putInt("probe_boot", boot).apply();
+        if (getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE).getBoolean("start_at_boot", true)) {
+            openHome();
+            return;
+        }
         try {
             startActivity(new Intent(this, ProbeActivity.class)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION));
