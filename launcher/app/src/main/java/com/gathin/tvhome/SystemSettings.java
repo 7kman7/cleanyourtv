@@ -84,37 +84,6 @@ final class SystemSettings {
         return intent(context, Settings.ACTION_SETTINGS);
     }
 
-    /** Returns the launch intent for PhairPlay if installed, or null. */
-    static Intent phairPlayIntent(Context context) {
-        PackageManager pm = context.getPackageManager();
-        String[] packages = {
-                "com.phairplay.firetv",
-                "com.phairplay.googletv",
-                "com.phairplay"
-        };
-        for (String p : packages) {
-            Intent launch = pm.getLaunchIntentForPackage(p);
-            if (launch != null) return launch;
-        }
-        Intent query = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER);
-        for (ResolveInfo ri : pm.queryIntentActivities(query, 0)) {
-            if (ri.activityInfo != null && ri.activityInfo.packageName.toLowerCase().contains("phairplay")) {
-                Intent launch = pm.getLaunchIntentForPackage(ri.activityInfo.packageName);
-                if (launch != null) return launch;
-                return new Intent().setComponent(new ComponentName(ri.activityInfo.packageName, ri.activityInfo.name));
-            }
-        }
-        Intent queryNormal = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER);
-        for (ResolveInfo ri : pm.queryIntentActivities(queryNormal, 0)) {
-            if (ri.activityInfo != null && ri.activityInfo.packageName.toLowerCase().contains("phairplay")) {
-                Intent launch = pm.getLaunchIntentForPackage(ri.activityInfo.packageName);
-                if (launch != null) return launch;
-                return new Intent().setComponent(new ComponentName(ri.activityInfo.packageName, ri.activityInfo.name));
-            }
-        }
-        return null;
-    }
-
     /**
      * Checks if an intent can be safely called by an external application without SecurityException
      * or ActivityNotFoundException.
@@ -137,43 +106,15 @@ final class SystemSettings {
         return false;
     }
 
-    /** Attempts to keep PhairPlay's receiver service running in the background. */
-    static void ensureAirPlayRunning(Context context) {
-        Intent phairplay = phairPlayIntent(context);
-        if (phairplay != null) {
-            String pkg = phairplay.getComponent() != null ? phairplay.getComponent().getPackageName()
-                    : (phairplay.getPackage() != null ? phairplay.getPackage() : "com.phairplay.firetv");
-            String[] serviceClasses = {
-                    "com.phairplay.service.PhairPlayService",
-                    "com.phairplay.PhairPlayService",
-                    pkg + ".AirPlayService",
-                    pkg + ".AirReceiverService",
-                    pkg + ".service.AirPlayService",
-                    pkg + ".AirPlayServerService"
-            };
-            for (String cls : serviceClasses) {
-                Intent svc = new Intent().setComponent(new ComponentName(pkg, cls));
-                try {
-                    context.startService(svc);
-                    return;
-                } catch (Exception ignored) {
-                }
-            }
-        }
-    }
-
     /**
-     * Ensures Fire TV native Apple AirPlay receiver, Amazon Cast sink, and PhairPlay are awake
+     * Ensures Fire TV native Apple AirPlay receiver and Amazon Cast sink are awake
      * and running in the background so Apple devices can discover the TV over mDNS/Bonjour immediately.
      */
     static void ensureNativeAirPlayRunning(Context context) {
         PackageManager pm = context.getPackageManager();
         String[] airplayPackages = {
                 "com.apple.airplay.amazon.airplay",
-                "com.amazon.cast.sink",
-                "com.phairplay.firetv",
-                "com.phairplay.googletv",
-                "com.phairplay"
+                "com.amazon.cast.sink"
         };
         for (String pkg : airplayPackages) {
             try {
@@ -192,7 +133,7 @@ final class SystemSettings {
             } catch (Exception ignored) {
             }
         }
-        // Wake Apple AirPlay mDNS daemon, Amazon Cast sink, and PhairPlay
+        // Wake Apple AirPlay mDNS daemon and Amazon Cast sink
         try {
             context.sendBroadcast(new Intent("com.amazon.device.settings.ACTION_SETTINGS_CHANGED")
                     .setPackage("com.apple.airplay.amazon.airplay"));
@@ -208,13 +149,6 @@ final class SystemSettings {
                     .setPackage("com.amazon.cast.sink"));
         } catch (Exception ignored) {
         }
-        try {
-            context.sendBroadcast(new Intent("com.phairplay.START")
-                    .setPackage("com.phairplay.firetv"));
-        } catch (Exception ignored) {
-        }
-        // Secondary fallback
-        ensureAirPlayRunning(context);
     }
 
     /**

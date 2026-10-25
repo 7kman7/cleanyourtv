@@ -71,6 +71,20 @@ public final class LauncherSettingsActivity extends Activity {
             Config.THEME_MATRIX
     };
 
+    private static final int[] THEME_RES = {
+            R.string.theme_default,
+            R.string.theme_oled,
+            R.string.theme_glass,
+            R.string.theme_aurora,
+            R.string.theme_cyberpunk,
+            R.string.theme_forest,
+            R.string.theme_sunset,
+            R.string.theme_frutiger_aero,
+            R.string.theme_windows_classic,
+            R.string.theme_vaporwave,
+            R.string.theme_matrix
+    };
+
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -292,34 +306,31 @@ public final class LauncherSettingsActivity extends Activity {
     }
 
     private String themeDisplayName(String key) {
-        if (Config.THEME_OLED.equals(key)) return getString(R.string.theme_oled);
-        if (Config.THEME_GLASS.equals(key)) return getString(R.string.theme_glass);
-        if (Config.THEME_AURORA.equals(key)) return getString(R.string.theme_aurora);
-        if (Config.THEME_CYBERPUNK.equals(key)) return getString(R.string.theme_cyberpunk);
-        if (Config.THEME_FOREST.equals(key)) return getString(R.string.theme_forest);
-        if (Config.THEME_SUNSET.equals(key)) return getString(R.string.theme_sunset);
-        if (Config.THEME_FRUTIGER_AERO.equals(key)) return getString(R.string.theme_frutiger_aero);
-        if (Config.THEME_WINDOWS_CLASSIC.equals(key)) return getString(R.string.theme_windows_classic);
-        if (Config.THEME_VAPORWAVE.equals(key)) return getString(R.string.theme_vaporwave);
-        if (Config.THEME_MATRIX.equals(key)) return getString(R.string.theme_matrix);
+        for (int i = 0; i < THEME_KEYS.length; i++) {
+            if (THEME_KEYS[i].equals(key)) return getString(THEME_RES[i]);
+        }
         return getString(R.string.theme_default);
     }
 
+    private static final int[] ORDER_RES = {
+            R.string.order_pinned_recent_all,
+            R.string.order_recent_pinned_all,
+            R.string.order_pinned_all_recent,
+            R.string.order_all_recent_pinned
+    };
+
+    private static final int[] SORT_RES = {
+            R.string.sort_custom,
+            R.string.sort_alphabetical,
+            R.string.sort_most_used
+    };
+
     private String sectionOrderName(int order) {
-        switch (order) {
-            case 1: return getString(R.string.order_recent_pinned_all);
-            case 2: return getString(R.string.order_pinned_all_recent);
-            case 3: return getString(R.string.order_all_recent_pinned);
-            default: return getString(R.string.order_pinned_recent_all);
-        }
+        return getString(ORDER_RES[order >= 0 && order < ORDER_RES.length ? order : 0]);
     }
 
     private String allAppsSortName(int sort) {
-        switch (sort) {
-            case 1: return getString(R.string.sort_alphabetical);
-            case 2: return getString(R.string.sort_most_used);
-            default: return getString(R.string.sort_custom);
-        }
+        return getString(SORT_RES[sort >= 0 && sort < SORT_RES.length ? sort : 0]);
     }
 
     private void showThemePicker() {

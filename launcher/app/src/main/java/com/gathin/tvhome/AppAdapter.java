@@ -605,6 +605,13 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         int width = parent.getWidth() > 0 ? parent.getWidth() : parent.getMeasuredWidth();
         int inner = width - parent.getPaddingLeft() - parent.getPaddingRight();
         int w = tileWidthPx(inner, parent.getHeight(), dockSize, rowsBelowDock, dockTitle, dockRow, density), h = tileHeightPx(w);
+        View v = createTileView(parent, w, h, density, false);
+        if (singleRow) v.getLayoutParams().width = inner / dockSize;
+        return new Holder(v, listener, animations, advancedEffects, reducedMotion, restNameAlpha, focusOvershoot);
+    }
+
+    private View createTileView(ViewGroup parent, int w, int h, float density, boolean shelf) {
+        View v = LayoutInflater.from(ctx).inflate(R.layout.item_app, parent, false);
         View card = v.findViewById(R.id.card);
         ViewGroup.LayoutParams cardLp = card.getLayoutParams();
         cardLp.width = w;
@@ -613,25 +620,21 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         View name = v.findViewById(R.id.name);
         ViewGroup.MarginLayoutParams nameLp = (ViewGroup.MarginLayoutParams) name.getLayoutParams();
         nameLp.width = w;
-        nameLp.topMargin = h + Math.round((dockRow ? 7 : 4) * density);
-        if (!dockRow) {
-            // Compact spacing (COMPACT_ITEM_EXTRA_DP): 4dp item padding and a 20dp name instead of 8dp and 22dp.
+        nameLp.topMargin = h + Math.round((shelf || dockRow ? 7 : 4) * density);
+        if (!shelf && !dockRow) {
             nameLp.height = Math.round(20 * density);
             int pad = Math.round(4 * density);
             v.setPadding(v.getPaddingLeft(), pad, v.getPaddingRight(), pad);
         }
         name.setLayoutParams(nameLp);
-        // A sideways row would stretch a match_parent item across the whole screen: give it a grid column's width.
-        if (singleRow) v.getLayoutParams().width = inner / dockSize;
         if (uniformTiles) {
-            // tvOS-style tile: a large centred mark, no caption inside the card.
             View icon = v.findViewById(R.id.icon);
             FrameLayout.LayoutParams iconLp = (FrameLayout.LayoutParams) icon.getLayoutParams();
             iconLp.width = iconLp.height = Math.round(h * ICON_SHARE);
             iconLp.bottomMargin = 0;
             icon.setLayoutParams(iconLp);
         }
-        return new Holder(v, listener, animations, advancedEffects, reducedMotion, restNameAlpha, focusOvershoot);
+        return v;
     }
 
     @Override
@@ -655,25 +658,8 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
                 for (int i = 0; i < e.shelfApps.size(); i++) {
                     Entry app = e.shelfApps.get(i);
-                    View v = LayoutInflater.from(ctx).inflate(R.layout.item_app, container, false);
-                    View card = v.findViewById(R.id.card);
-                    ViewGroup.LayoutParams cardLp = card.getLayoutParams();
-                    cardLp.width = w;
-                    cardLp.height = h;
-                    card.setLayoutParams(cardLp);
-                    View name = v.findViewById(R.id.name);
-                    ViewGroup.MarginLayoutParams nameLp = (ViewGroup.MarginLayoutParams) name.getLayoutParams();
-                    nameLp.width = w;
-                    nameLp.topMargin = h + Math.round(7 * density);
-                    name.setLayoutParams(nameLp);
+                    View v = createTileView(container, w, h, density, true);
                     v.setLayoutParams(new LinearLayout.LayoutParams(w + Math.round(16 * density), ViewGroup.LayoutParams.WRAP_CONTENT));
-                    if (uniformTiles) {
-                        View icon = v.findViewById(R.id.icon);
-                        FrameLayout.LayoutParams iconLp = (FrameLayout.LayoutParams) icon.getLayoutParams();
-                        iconLp.width = iconLp.height = Math.round(h * ICON_SHARE);
-                        iconLp.bottomMargin = 0;
-                        icon.setLayoutParams(iconLp);
-                    }
                     Holder hCard = new Holder(v, listener, animations, advancedEffects, reducedMotion, restNameAlpha, focusOvershoot);
                     bindCard(hCard, app, true, i);
                     hCard.card.setOnLongClickListener(vw -> {
