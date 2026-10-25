@@ -103,6 +103,13 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     static final int VIEW_TYPE_SECTION_HEADER = 2;
     static final int VIEW_TYPE_RECENT_SHELF = 3;
 
+    private static final int[][] SECTION_SEQS = {
+            {0, 1, 2},
+            {1, 0, 2},
+            {0, 2, 1},
+            {2, 1, 0}
+    };
+
     static final float FOCUS_SCALE = 1.10f;
     /** Design size of a tile (dp); tiles shrink from here when the columns don't fit, see tileWidthPx. */
     static final float DESIGN_W_DP = 180f, DESIGN_H_DP = 101f;
@@ -438,34 +445,22 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         }
 
         List<Entry> allEntries = new ArrayList<>(fresh);
-        if (allAppsSort == 1) {
-            Collections.sort(allEntries, (a, b) -> a.label.compareToIgnoreCase(b.label));
-        } else if (allAppsSort == 2) {
-            Collections.sort(allEntries, (a, b) -> {
-                long la = LastOpened.get(ctx, a.pkg);
-                long lb = LastOpened.get(ctx, b.pkg);
+        Collections.sort(allEntries, (a, b) -> {
+            if (allAppsSort == 2) {
+                long la = LastOpened.get(ctx, a.pkg), lb = LastOpened.get(ctx, b.pkg);
                 if (la > 0 || lb > 0) return Long.compare(lb, la);
-                return a.label.compareToIgnoreCase(b.label);
-            });
-        } else {
-            Collections.sort(allEntries, (a, b) -> {
+            } else if (allAppsSort == 0) {
                 int saved = Order.compare(savedRanks, a.component.flattenToShortString(), b.component.flattenToShortString());
                 if (saved != 0) return saved;
-                return a.label.compareToIgnoreCase(b.label);
-            });
-        }
+            }
+            return a.label.compareToIgnoreCase(b.label);
+        });
 
         items.clear();
         docked = 0;
         emptySlots = 0;
 
-        int[] orderSeq;
-        switch (sectionOrder) {
-            case 1: orderSeq = new int[]{1, 0, 2}; break;
-            case 2: orderSeq = new int[]{0, 2, 1}; break;
-            case 3: orderSeq = new int[]{2, 1, 0}; break;
-            default: orderSeq = new int[]{0, 1, 2}; break;
-        }
+        int[] orderSeq = SECTION_SEQS[sectionOrder >= 0 && sectionOrder < SECTION_SEQS.length ? sectionOrder : 0];
 
         for (int sec : orderSeq) {
             if (sec == 0 && showDock && dockRow) {

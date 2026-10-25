@@ -1,5 +1,4 @@
-# Shrink and optimise: keep app class and method names and line numbers so crash reports
-# and stack traces remain readable, while allowing AndroidX libraries to be minified.
--keepattributes SourceFile,LineNumberTable
--keepnames class com.gathin.tvhome.** { *; }
--keepclassmembernames class com.gathin.tvhome.** { *; }
+# Shrink and optimise, but keep class and method names: the size win comes from dropping unused
+# AndroidX code, not from renaming, and readable stack traces matter more in a sideloaded app
+# where crash reports arrive as screenshots.
+-dontobfuscate

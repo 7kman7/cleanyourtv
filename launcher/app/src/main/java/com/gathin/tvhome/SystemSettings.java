@@ -151,6 +151,14 @@ final class SystemSettings {
         }
     }
 
+    private static final String[] DISPLAY_COMPONENTS = {
+            "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.display.DisplayActivity",
+            "com.amazon.tv.settings/com.amazon.tv.settings.tv.BuellerDisplayAndSoundsSettingsActivity",
+            "com.amazon.tv.settings/com.amazon.tv.settings.display.DisplayActivity",
+            "com.amazon.tv.launcher/com.amazon.tv.launcher.ui.MainSettingsActivity",
+            "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.MainActivity"
+    };
+
     /**
      * Checks whether native Fire TV AirPlay, Amazon Cast Sink, or Cast Settings
      * is available on the TV.
@@ -210,14 +218,7 @@ final class SystemSettings {
         }
 
         // 3. Fire OS Display & Sounds settings activities (where native AirPlay & HomeKit lives)
-        String[] displayComponents = {
-                "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.display.DisplayActivity",
-                "com.amazon.tv.settings/com.amazon.tv.settings.tv.BuellerDisplayAndSoundsSettingsActivity",
-                "com.amazon.tv.settings/com.amazon.tv.settings.display.DisplayActivity",
-                "com.amazon.tv.launcher/com.amazon.tv.launcher.ui.MainSettingsActivity",
-                "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.MainActivity"
-        };
-        for (String c : displayComponents) {
+        for (String c : DISPLAY_COMPONENTS) {
             ComponentName cn = ComponentName.unflattenFromString(c);
             if (cn != null) {
                 try {
@@ -271,13 +272,7 @@ final class SystemSettings {
         Intent appleLaunch = pm.getLaunchIntentForPackage("com.apple.airplay.amazon.airplay");
         if (appleLaunch != null) return appleLaunch;
 
-        String[] displayActivities = {
-                "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.display.DisplayActivity",
-                "com.amazon.tv.settings/com.amazon.tv.settings.tv.BuellerDisplayAndSoundsSettingsActivity",
-                "com.amazon.tv.settings/com.amazon.tv.settings.display.DisplayActivity",
-                "com.amazon.tv.launcher/com.amazon.tv.launcher.ui.MainSettingsActivity"
-        };
-        for (String c : displayActivities) {
+        for (String c : DISPLAY_COMPONENTS) {
             ComponentName cn = ComponentName.unflattenFromString(c);
             if (cn != null) {
                 Intent testIntent = new Intent().setComponent(cn);
