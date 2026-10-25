@@ -537,19 +537,6 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             return true;
         });
     }
-                int pos = h.getBindingAdapterPosition();
-                if (pos != RecyclerView.NO_POSITION) listener.onTileLongPress(pos, v);
-                return true;
-            }
-            Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + e.pkg));
-            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            try {
-                ctx.startActivity(i);
-            } catch (ActivityNotFoundException ignored) {
-            }
-            return true;
-        });
-    }
 
     private void bindCard(Holder h, Entry e, boolean showName, int position) {
         h.card.setVisibility(View.VISIBLE);
