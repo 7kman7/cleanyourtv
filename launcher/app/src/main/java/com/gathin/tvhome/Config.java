@@ -43,6 +43,10 @@ final class Config {
     static final String ROWS_BELOW_DOCK_KEY = "rows_below_dock";
     static final String WALLPAPER_CHOICE_KEY = "wallpaper_choice";
     static final String DOCK_OPACITY_KEY = "dock_opacity";
+    static final String SHOW_DOCK_KEY = "show_dock";
+    static final String SHOW_ALL_APPS_KEY = "show_all_apps";
+    static final String SECTION_ORDER_KEY = "section_order";
+    static final String ALL_APPS_SORT_KEY = "all_apps_sort";
     static final String RECENT_APPS_KEY = "recent_apps";
     static final String THEME_KEY = "chosen_theme";
     static final String THEME_DEFAULT = "default";
@@ -52,6 +56,10 @@ final class Config {
     static final String THEME_CYBERPUNK = "cyberpunk";
     static final String THEME_FOREST = "forest";
     static final String THEME_SUNSET = "sunset";
+    static final String THEME_FRUTIGER_AERO = "frutiger_aero";
+    static final String THEME_WINDOWS_CLASSIC = "windows_classic";
+    static final String THEME_VAPORWAVE = "vaporwave";
+    static final String THEME_MATRIX = "matrix";
     /**
      * Counts the changes made in Launcher settings. Home remembers the count it was built with and rebuilds on
      * resume when it differs, however the settings were left (see MainActivity#onResume).
@@ -67,6 +75,10 @@ final class Config {
 
     final boolean recentApps;
     final String chosenTheme;
+    final boolean showDock;
+    final boolean showAllApps;
+    final int sectionOrder;
+    final int allAppsSort;
     final List<String> dockApps;
     /** Grid apps fill the dock slots dock_apps leaves free (config.xml, fill_dock); on by default, false leaves the slots empty. */
     final boolean fillDock;
@@ -262,9 +274,13 @@ final class Config {
                    boolean keyFilter, boolean dockGlass, String glowStyle, boolean wallpaperCaptions,
                    boolean handleViewInputs, boolean tileMenu, boolean dockEvenPadding, boolean cinematicDots, boolean cinematicWhiteFocus, boolean wifiStatusColor, int cinematicScrim, int cinematicArt,
                    Map<String, Set<String>> wallpaperMoods, boolean gamepadPassthrough, boolean consumeVolumeKeys, boolean wifiStatusWarnings, List<String> topBarApps, boolean showGreeting, boolean headerWhite, boolean clockWallpaper, int clockWallpaperDim, boolean clockGlow, String glassStyle, boolean singleRow, boolean dockBandAll, boolean lunarDate, int lunarUtcOffset,
-                   boolean recentApps, String chosenTheme) {
+                   boolean recentApps, String chosenTheme, boolean showDock, boolean showAllApps, int sectionOrder, int allAppsSort) {
         this.recentApps = recentApps;
         this.chosenTheme = chosenTheme != null ? chosenTheme : THEME_DEFAULT;
+        this.showDock = showDock;
+        this.showAllApps = showAllApps;
+        this.sectionOrder = sectionOrder;
+        this.allAppsSort = allAppsSort;
         this.handleViewInputs = handleViewInputs;
         this.tileMenu = tileMenu;
         this.inputKeycodes = inputKeycodes;
@@ -655,6 +671,45 @@ final class Config {
             appGlow = true;
             skyIntensity = 30;
             glowStyle = GLOW_HORIZON;
+        } else if (THEME_FRUTIGER_AERO.equals(chosenTheme)) {
+            background = 0xFF071E2E;
+            dockGlass = true;
+            dockEvenPadding = true;
+            cinematic = true;
+            appGlow = true;
+            advancedEffects = true;
+            skyIntensity = 55;
+            dockOpacity = 45;
+            glowStyle = GLOW_HORIZON;
+            headerWhite = true;
+            focusOvershoot = true;
+        } else if (THEME_WINDOWS_CLASSIC.equals(chosenTheme)) {
+            background = 0xFF008080;
+            dockOpacity = 100;
+            dockGlass = false;
+            cinematic = false;
+            appGlow = false;
+            skyIntensity = 0;
+            advancedEffects = false;
+            dockEvenPadding = false;
+        } else if (THEME_VAPORWAVE.equals(chosenTheme)) {
+            background = 0xFF180A2A;
+            dockGlass = true;
+            dockEvenPadding = true;
+            appGlow = true;
+            advancedEffects = true;
+            skyIntensity = 40;
+            dockOpacity = 50;
+            glowStyle = "halo";
+        } else if (THEME_MATRIX.equals(chosenTheme)) {
+            background = 0xFF020B04;
+            dockGlass = true;
+            dockEvenPadding = true;
+            appGlow = true;
+            advancedEffects = true;
+            skyIntensity = 25;
+            dockOpacity = 80;
+            glowStyle = GLOW_HORIZON;
         } else {
             // Default Midnight theme
             background = 0xFF090C14;
@@ -664,7 +719,12 @@ final class Config {
             glowStyle = GLOW_HORIZON;
         }
 
+        boolean showDock = choices.getBoolean(SHOW_DOCK_KEY, true);
         boolean recentApps = choices.getBoolean(RECENT_APPS_KEY, true);
+        boolean showAllApps = choices.getBoolean(SHOW_ALL_APPS_KEY, true);
+        int sectionOrder = choices.getInt(SECTION_ORDER_KEY, 0);
+        int allAppsSort = choices.getInt(ALL_APPS_SORT_KEY, 0);
+        if (!showDock) dockRow = false;
 
         return new Config(dock, fillDock, hidden, libraryApps, liveTv, liveTvAction, liveTvInputId, packageMap(launchActions), packageMap(appLabels),
                 packageMap(appBanners), panelService,
@@ -675,7 +735,7 @@ final class Config {
                 wallpapers, rotationMinutes, wallpaperDim, dockOpacity, wallpaperOrder, applied,
                 festival, inputKeycodes, appKeys, stockHomeRedirect, json == null ? Collections.emptyList() : raceCalendar(json), cinematic, ambientGlow, appGlow, fadeRows,
                 Math.max(0, idleClockMinutes), keyFilter, dockGlass, glowStyle, wallpaperCaptions, handleViewInputs, tileMenu, dockEvenPadding, cinematicDots, cinematicWhiteFocus, wifiStatusColor, cinematicScrim, cinematicArt, wallpaperMoods, gamepadPassthrough, consumeVolumeKeys, wifiStatusWarnings, topBarApps, showGreeting, headerWhite, clockWallpaper, Math.max(0, Math.min(90, clockWallpaperDim)), clockGlow, glassStyle, singleRow && dockRow, dockBandAll, lunar, lunarOffset,
-                recentApps, chosenTheme);
+                recentApps, chosenTheme, showDock, showAllApps, sectionOrder, allAppsSort);
     }
 
     /**

@@ -582,7 +582,7 @@ and a wallpaper.
   - **Apps per row** 4, 5, 6 or 7; **Rows below dock** 0 to 3, how many rows of tiles stay visible under the
     dock band; **Dock band opacity** 100%, 70%, 50% or 30%. The last two only do anything while the dock is
     its own row (`dock_row`, on by default).
-  - **Theme** chooses between visual styles: Midnight (Default), OLED Pure Black, Frosted Glass (tvOS), Aurora Cosmic, Cyberpunk Violet, Emerald Forest, and Sunset Ember.
+  - **Theme** chooses between visual styles: Midnight (Default), OLED Pure Black, Frosted Glass (tvOS), Aurora Cosmic, Cyberpunk Violet, Emerald Forest, Sunset Ember, Frutiger Aero (Windows Aero), Windows Classic (Retro 9x), Solarized Vaporwave, and Matrix Phosphor.
   - **Wallpaper**: one picture from the theme's collection (or its `wallpaper.jpg`), **None**, or **Theme
     default**. A pick holds that picture and stops the rotation until you choose Theme default, press
     Follow theme, or push the theme again.
@@ -592,7 +592,11 @@ and a wallpaper.
     time Home comes up after the TV starts. Once per boot, so Home and Back still reach the launcher.
   - **Follow theme (reset on-TV choices)**, which clears every choice above. Pushing or resetting a theme
     clears them too.
-  - **Recent apps** sorts apps below the dock by most recently opened, keeping the dock just as you set it.
+  - **Pinned apps dock** on or off, showing the top row of pinned favourite apps as a dedicated dock.
+  - **Recent apps shelf** on or off, showing a horizontal scrolling shelf of recently launched apps.
+  - **All apps section** on or off, showing the grid of all installed apps below.
+  - **Section order** cycles through section arrangements (Pinned • Recent • All, Recent • Pinned • All, etc.).
+  - **All apps sort** sets how all apps are sorted (Custom manual order, Alphabetical, or Most opened).
   - **Override current launcher** intercepts the stock launcher with zero flicker.
   - **Run at startup** ensures CleanYourTV opens at boot.
   - **Module cards** enables rich dynamic cards from supported apps.

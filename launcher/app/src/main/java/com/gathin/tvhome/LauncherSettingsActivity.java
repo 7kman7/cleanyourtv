@@ -46,7 +46,17 @@ public final class LauncherSettingsActivity extends Activity {
     private boolean startAtBoot;
     private boolean moduleCards;
     private boolean recentApps;
+    private boolean showDock;
+    private boolean showAllApps;
+    private int sectionOrder;
+    private int allAppsSort;
     private String chosenTheme;
+
+    private TextView showDockChoice;
+    private TextView recentAppsChoice;
+    private TextView showAllAppsChoice;
+    private TextView sectionOrderChoice;
+    private TextView allAppsSortChoice;
 
     private static final String[] THEME_KEYS = {
             Config.THEME_DEFAULT,
@@ -55,7 +65,11 @@ public final class LauncherSettingsActivity extends Activity {
             Config.THEME_AURORA,
             Config.THEME_CYBERPUNK,
             Config.THEME_FOREST,
-            Config.THEME_SUNSET
+            Config.THEME_SUNSET,
+            Config.THEME_FRUTIGER_AERO,
+            Config.THEME_WINDOWS_CLASSIC,
+            Config.THEME_VAPORWAVE,
+            Config.THEME_MATRIX
     };
 
     @Override
@@ -159,11 +173,47 @@ public final class LauncherSettingsActivity extends Activity {
             openOnStartChoice.setOnClickListener(v -> showOpenOnStartPicker());
         }
 
+        showDock = choices.getBoolean(Config.SHOW_DOCK_KEY, true);
+        showDockChoice = findViewById(R.id.showDockChoice);
+        showDockChoice.setOnClickListener(v -> {
+            showDock = !showDock;
+            choices.edit().putBoolean(Config.SHOW_DOCK_KEY, showDock).apply();
+            changed();
+            refresh();
+        });
+
         recentApps = choices.getBoolean(Config.RECENT_APPS_KEY, true);
         recentAppsChoice = findViewById(R.id.recentAppsChoice);
         recentAppsChoice.setOnClickListener(v -> {
             recentApps = !recentApps;
             choices.edit().putBoolean(Config.RECENT_APPS_KEY, recentApps).apply();
+            changed();
+            refresh();
+        });
+
+        showAllApps = choices.getBoolean(Config.SHOW_ALL_APPS_KEY, true);
+        showAllAppsChoice = findViewById(R.id.showAllAppsChoice);
+        showAllAppsChoice.setOnClickListener(v -> {
+            showAllApps = !showAllApps;
+            choices.edit().putBoolean(Config.SHOW_ALL_APPS_KEY, showAllApps).apply();
+            changed();
+            refresh();
+        });
+
+        sectionOrder = choices.getInt(Config.SECTION_ORDER_KEY, 0);
+        sectionOrderChoice = findViewById(R.id.sectionOrderChoice);
+        sectionOrderChoice.setOnClickListener(v -> {
+            sectionOrder = (sectionOrder + 1) % 4;
+            choices.edit().putInt(Config.SECTION_ORDER_KEY, sectionOrder).apply();
+            changed();
+            refresh();
+        });
+
+        allAppsSort = choices.getInt(Config.ALL_APPS_SORT_KEY, 0);
+        allAppsSortChoice = findViewById(R.id.allAppsSortChoice);
+        allAppsSortChoice.setOnClickListener(v -> {
+            allAppsSort = (allAppsSort + 1) % 3;
+            choices.edit().putInt(Config.ALL_APPS_SORT_KEY, allAppsSort).apply();
             changed();
             refresh();
         });
@@ -199,7 +249,9 @@ public final class LauncherSettingsActivity extends Activity {
                     .remove("advanced_effects").remove(Config.WALLPAPER_CHOICE_KEY)
                     .remove(Config.DOCK_OPACITY_KEY).remove(OpenOnStart.KEY)
                     .remove("override_launcher").remove("start_at_boot").remove("module_cards")
-                    .remove(Config.RECENT_APPS_KEY).remove(Config.THEME_KEY).commit();
+                    .remove(Config.SHOW_DOCK_KEY).remove(Config.RECENT_APPS_KEY)
+                    .remove(Config.SHOW_ALL_APPS_KEY).remove(Config.SECTION_ORDER_KEY)
+                    .remove(Config.ALL_APPS_SORT_KEY).remove(Config.THEME_KEY).commit();
             Config current = Config.load(this);
             columns = current.columns;
             rowsBelowDock = current.rowsBelowDock;
@@ -207,7 +259,11 @@ public final class LauncherSettingsActivity extends Activity {
             animations = current.animations;
             advancedEffects = current.animations && current.advancedEffects;
             chosenTheme = current.chosenTheme;
+            showDock = current.showDock;
             recentApps = current.recentApps;
+            showAllApps = current.showAllApps;
+            sectionOrder = current.sectionOrder;
+            allAppsSort = current.allAppsSort;
             View r = findViewById(R.id.settingsRoot);
             if (r != null) r.setBackgroundColor(current.backgroundColor);
             changed();
@@ -243,7 +299,28 @@ public final class LauncherSettingsActivity extends Activity {
         if (Config.THEME_CYBERPUNK.equals(key)) return getString(R.string.theme_cyberpunk);
         if (Config.THEME_FOREST.equals(key)) return getString(R.string.theme_forest);
         if (Config.THEME_SUNSET.equals(key)) return getString(R.string.theme_sunset);
+        if (Config.THEME_FRUTIGER_AERO.equals(key)) return getString(R.string.theme_frutiger_aero);
+        if (Config.THEME_WINDOWS_CLASSIC.equals(key)) return getString(R.string.theme_windows_classic);
+        if (Config.THEME_VAPORWAVE.equals(key)) return getString(R.string.theme_vaporwave);
+        if (Config.THEME_MATRIX.equals(key)) return getString(R.string.theme_matrix);
         return getString(R.string.theme_default);
+    }
+
+    private String sectionOrderName(int order) {
+        switch (order) {
+            case 1: return getString(R.string.order_recent_pinned_all);
+            case 2: return getString(R.string.order_pinned_all_recent);
+            case 3: return getString(R.string.order_all_recent_pinned);
+            default: return getString(R.string.order_pinned_recent_all);
+        }
+    }
+
+    private String allAppsSortName(int sort) {
+        switch (sort) {
+            case 1: return getString(R.string.sort_alphabetical);
+            case 2: return getString(R.string.sort_most_used);
+            default: return getString(R.string.sort_custom);
+        }
     }
 
     private void showThemePicker() {
@@ -403,8 +480,16 @@ public final class LauncherSettingsActivity extends Activity {
                         : wallpaperCurrent != null ? wallpaperCurrent
                         : getString(R.string.wallpaper_theme_default)));
         openOnStartChoice.setText(getString(R.string.open_on_start_state, openOnStartLabel()));
+        showDockChoice.setText(getString(R.string.show_dock_state,
+                getString(showDock ? R.string.on : R.string.off)));
         recentAppsChoice.setText(getString(R.string.recent_apps_state,
                 getString(recentApps ? R.string.on : R.string.off)));
+        showAllAppsChoice.setText(getString(R.string.show_all_apps_state,
+                getString(showAllApps ? R.string.on : R.string.off)));
+        sectionOrderChoice.setText(getString(R.string.section_order_state,
+                sectionOrderName(sectionOrder)));
+        allAppsSortChoice.setText(getString(R.string.all_apps_sort_state,
+                allAppsSortName(allAppsSort)));
         overrideLauncherChoice.setText(getString(R.string.override_launcher_state,
                 getString(overrideLauncher ? R.string.on : R.string.off)));
         startAtBootChoice.setText(getString(R.string.run_at_startup_state,
@@ -420,7 +505,9 @@ public final class LauncherSettingsActivity extends Activity {
                 || choices.contains(Config.WALLPAPER_CHOICE_KEY) || choices.contains(Config.DOCK_OPACITY_KEY)
                 || choices.contains(OpenOnStart.KEY) || choices.contains("override_launcher")
                 || choices.contains("start_at_boot") || choices.contains("module_cards")
-                || choices.contains(Config.RECENT_APPS_KEY) || choices.contains(Config.THEME_KEY);
+                || choices.contains(Config.SHOW_DOCK_KEY) || choices.contains(Config.RECENT_APPS_KEY)
+                || choices.contains(Config.SHOW_ALL_APPS_KEY) || choices.contains(Config.SECTION_ORDER_KEY)
+                || choices.contains(Config.ALL_APPS_SORT_KEY) || choices.contains(Config.THEME_KEY);
     }
 
     private void open(Intent intent) {
