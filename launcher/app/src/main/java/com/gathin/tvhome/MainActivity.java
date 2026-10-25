@@ -1100,8 +1100,17 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         // One LEANBACK query for both the tiles and the card checks.
         final List<ResolveInfo> leanback = getPackageManager().queryIntentActivities(
                 new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER), 0);
-        cards = moduleCards ? CardFeature.run(() -> Cards.discover(this, hiddenApps,
+        List<Cards.Card> discovered = moduleCards ? CardFeature.run(() -> Cards.discover(this, hiddenApps,
                 () -> Cards.load(Cards.storeFile(this)), leanback), none) : none;
+        if (moduleCards) {
+            Map<String, Cards.Record> records = CardFeature.run(() -> Cards.load(Cards.storeFile(this)), Collections.emptyMap());
+            List<Cards.Card> allCards = new ArrayList<>(discovered != null ? discovered : none);
+            ensureBuiltinCard(allCards, records, "io.github.maxhayim.remoteaccess", "Remote Access", "ADB", 0xFFE5534B);
+            ensureBuiltinCard(allCards, records, "io.github.maxhayim.airplaystatus", "AirPlay Status", "Mirroring", 0xFF5AC8FA);
+            cards = allCards;
+        } else {
+            cards = none;
+        }
         adapter.reload(cards.isEmpty() ? none : CardFeature.run(() -> Cards.shown(cards), none), leanback);
         lastFocusedKey = returnKey;
         lastFocused = returnSlot;
@@ -2857,6 +2866,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
      *  throws SecurityException, which used to take Home down with it (YaOS before the manifest asked
      *  for ACCESS_TV_SOURCE). */
     private void openInput(String inputId) {
+        HomeKeyService.allowStockLauncherUntil = SystemClock.uptimeMillis() + 8000;
         // A CEC device is a child input of its HDMI port; the vendor source number belongs to the port
         // (MiTV-MFFU0). Only that lookup uses the parent: the generic path below still opens the child.
         String sourceId = inputId;
@@ -2878,30 +2888,72 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 // fall through to the standard way
             }
         }
-        Uri uri = TvContract.buildChannelUriForPassthroughInput(inputId);
-        Intent view = (inputUriScheme.isEmpty()
-                ? new Intent(Intent.ACTION_VIEW).setDataAndType(uri, "vnd.android.cursor.item/channel")
-                : new Intent(Intent.ACTION_VIEW, uri.buildUpon().scheme(inputUriScheme).build()))
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        // Aim it at the TV app first: apps installed later (a streaming app, a file manager) can claim the same
-        // channel URI too, and with two or more handlers Android shows a chooser instead of the input (WhaleOS).
-        if (!liveTvPkg.isEmpty()) {
+        Uri uri = null;
+        try {
+            uri = TvContract.buildChannelUriForPassthroughInput(inputId);
+        } catch (Exception ignored) {
+        }
+        if (uri != null) {
+            Intent view = (inputUriScheme.isEmpty()
+                    ? new Intent(Intent.ACTION_VIEW).setDataAndType(uri, "vnd.android.cursor.item/channel")
+                    : new Intent(Intent.ACTION_VIEW, uri.buildUpon().scheme(inputUriScheme).build()))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            // Aim it at the TV app first: apps installed later (a streaming app, a file manager) can claim the same
+            // channel URI too, and with two or more handlers Android shows a chooser instead of the input (WhaleOS).
+            if (!liveTvPkg.isEmpty()) {
+                try {
+                    startActivity(new Intent(view).setPackage(liveTvPkg));
+                    return;
+                } catch (ActivityNotFoundException | SecurityException ignored) {
+                }
+            }
             try {
-                startActivity(new Intent(view).setPackage(liveTvPkg));
+                startActivity(view);
                 return;
             } catch (ActivityNotFoundException | SecurityException ignored) {
             }
-        }
-        try {
-            startActivity(view);
-            return;
-        } catch (ActivityNotFoundException | SecurityException e) {
-            if (inputAction.isEmpty()) {
-                Toast.makeText(this, R.string.not_available, Toast.LENGTH_SHORT).show();
+            try {
+                startActivity(new Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
                 return;
+            } catch (Exception ignored) {
             }
         }
-        open(new Intent(inputAction).setDataAndType(uri, "vnd.android.cursor.item/channel"));
+        String[] amazonInputIntents = {
+                "com.amazon.tv.action.SWITCH_INPUT",
+                "android.media.tv.action.VIEW_INPUTS",
+                "amazon.intent.action.INPUTS_SETTINGS"
+        };
+        for (String act : amazonInputIntents) {
+            try {
+                startActivity(new Intent(act).putExtra("input_id", inputId).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                return;
+            } catch (Exception ignored) {
+            }
+        }
+        String[] fireTvInputs = {
+                "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.inputs.InputsActivity",
+                "com.amazon.tv.settings/com.amazon.tv.settings.inputs.InputsActivity",
+                "com.android.tv.settings/com.android.tv.settings.inputs.InputsActivity"
+        };
+        for (String comp : fireTvInputs) {
+            ComponentName cn = ComponentName.unflattenFromString(comp);
+            if (cn != null) {
+                try {
+                    getPackageManager().getPackageInfo(cn.getPackageName(), 0);
+                    startActivity(new Intent().setComponent(cn).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                    return;
+                } catch (Exception ignored) {
+                }
+            }
+        }
+        if (!inputAction.isEmpty()) {
+            try {
+                open(new Intent(inputAction).setDataAndType(uri, "vnd.android.cursor.item/channel"));
+                return;
+            } catch (Exception ignored) {
+            }
+        }
+        Toast.makeText(this, R.string.not_available, Toast.LENGTH_SHORT).show();
     }
 
     /** Dropdown menu under the Inputs pill: HDMI ports (with connection state), AV and Live TV. */
@@ -3064,8 +3116,15 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             addInputRow(rows, popup, R.drawable.ic_livetv, getString(R.string.live_tv), -1, () -> open(liveTvIntent));
         }
         if (rows.getChildCount() == 0) {
-            Toast.makeText(this, R.string.no_inputs, Toast.LENGTH_SHORT).show();
-            return;
+            addInputRow(rows, popup, R.drawable.ic_input, "HDMI 1", -1, () -> openInput("HDMI1"));
+            addInputRow(rows, popup, R.drawable.ic_input, "HDMI 2", -1, () -> openInput("HDMI2"));
+            addInputRow(rows, popup, R.drawable.ic_input, "HDMI 3", -1, () -> openInput("HDMI3"));
+            addInputRow(rows, popup, R.drawable.ic_av, "AV", -1, () -> openInput("AV"));
+            addSeparator(rows);
+            addInputRow(rows, popup, R.drawable.ic_input, getString(R.string.inputs), -1, () -> {
+                HomeKeyService.allowStockLauncherUntil = SystemClock.uptimeMillis() + 8000;
+                openFireTvInputs();
+            });
         }
 
         // Fit the widest row: TVs that report a status on every port (Sony) would otherwise squeeze the names out.
@@ -3075,6 +3134,37 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         int alignment = getResources().getBoolean(R.bool.rtl_menu_bar) != underGear ? Gravity.END : Gravity.START;
         dropIn(popup, panel, anchor, alignment);
         rows.getChildAt(0).requestFocus();
+    }
+
+    private void openFireTvInputs() {
+        String[] actions = {
+                "android.media.tv.action.VIEW_INPUTS",
+                "amazon.intent.action.INPUTS_SETTINGS",
+                "com.amazon.tv.action.SWITCH_INPUT"
+        };
+        for (String act : actions) {
+            try {
+                startActivity(new Intent(act).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                return;
+            } catch (Exception ignored) {
+            }
+        }
+        String[] comps = {
+                "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.inputs.InputsActivity",
+                "com.amazon.tv.settings/com.amazon.tv.settings.inputs.InputsActivity",
+                "com.android.tv.settings/com.android.tv.settings.inputs.InputsActivity"
+        };
+        for (String comp : comps) {
+            ComponentName cn = ComponentName.unflattenFromString(comp);
+            if (cn != null) {
+                try {
+                    getPackageManager().getPackageInfo(cn.getPackageName(), 0);
+                    startActivity(new Intent().setComponent(cn).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                    return;
+                } catch (Exception ignored) {
+                }
+            }
+        }
     }
 
     private PopupWindow glassPopup(View panel, int width) {
@@ -3356,6 +3446,18 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         cardPrompt = dialog;
         dialog.show();
         keep.requestFocus();
+    }
+
+    private void ensureBuiltinCard(List<Cards.Card> list, Map<String, Cards.Record> records,
+                                   String pkg, String label, String caption, int accent) {
+        for (Cards.Card c : list) {
+            if (pkg.equals(c.pkg)) return;
+        }
+        Cards.Record r = records != null ? records.get(pkg) : null;
+        Cards.State state = r == null ? Cards.State.SHOWN
+                : Cards.DECISION_SHOW.equals(r.decision) ? Cards.State.SHOWN : Cards.State.HIDDEN;
+        list.add(new Cards.Card(pkg, new ComponentName(pkg, "MainActivity"), label, label, caption, accent,
+                "built_in_addon", state));
     }
 
     /** Writes the owner's decision and rebuilds the tiles; focus is left where it is. */

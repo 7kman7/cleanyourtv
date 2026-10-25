@@ -66,7 +66,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     }
 
     static final class Entry {
-        static final int APP = 0, HOME_SETTINGS = 1, CARD = 2, EMPTY = 3, AIRPLAY = 4, RECENT_SHELF = 5, HEADER = 6;
+        static final int APP = 0, HOME_SETTINGS = 1, CARD = 2, EMPTY = 3, AIRPLAY = 4;
 
         final int kind;
         final String label;
@@ -80,7 +80,6 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         int ambient;
         /** uniform_tiles card fill, top and bottom colour; null until sampled from the icon. */
         int[] backdrop;
-        List<Entry> shelfApps;
 
         Entry(String label, ComponentName component, Drawable banner, Drawable icon) {
             this(APP, label, component, banner, icon, null, 0);
@@ -100,15 +99,6 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     static final int VIEW_TYPE_APP = 0;
     static final int VIEW_TYPE_LIBRARY = 1;
-    static final int VIEW_TYPE_SECTION_HEADER = 2;
-    static final int VIEW_TYPE_RECENT_SHELF = 3;
-
-    private static final int[][] SECTION_SEQS = {
-            {0, 1, 2},
-            {1, 0, 2},
-            {0, 2, 1},
-            {2, 1, 0}
-    };
 
     static final float FOCUS_SCALE = 1.10f;
     /** Design size of a tile (dp); tiles shrink from here when the columns don't fit, see tileWidthPx. */
@@ -249,22 +239,12 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private final Map<String, String> appLabels, appBanners;
     /** Every app tile is its icon on a card tinted from that icon, never its banner (config.xml, uniform_tiles). */
     private final boolean uniformTiles;
-    private final boolean recentApps;
-    private final boolean showDock;
-    private final boolean showAllApps;
-    private final int sectionOrder;
-    private final int allAppsSort;
     private final List<Entry> items = new ArrayList<>();
 
     AppAdapter(Context ctx, TileListener listener, int dockSize, Config cfg) {
         this.ctx = ctx;
         this.listener = listener;
         this.dockSize = dockSize;
-        this.recentApps = cfg.recentApps;
-        this.showDock = cfg.showDock;
-        this.showAllApps = cfg.showAllApps;
-        this.sectionOrder = cfg.sectionOrder;
-        this.allAppsSort = cfg.allAppsSort;
         this.favourites = cfg.dockApps;
         this.fillDock = cfg.fillDock;
         this.hidden = new HashSet<>(cfg.hiddenApps);
@@ -412,80 +392,23 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             }
         }
 
-        // Build the three sections: Pinned Dock, Recent Apps Shelf, and All Apps Grid
-        List<Entry> pinnedEntries = new ArrayList<>();
-        for (String fav : favourites) {
-            for (Entry e : fresh) {
-                if (fav.equals(e.pkg)) {
-                    if (!pinnedEntries.contains(e)) pinnedEntries.add(e);
-                    break;
-                }
-            }
-        }
-        Collections.sort(pinnedEntries, (a, b) -> {
-            int saved = Order.compare(savedRanks, a.component.flattenToShortString(), b.component.flattenToShortString());
-            if (saved != 0) return saved;
-            return Integer.compare(favourites.indexOf(a.pkg), favourites.indexOf(b.pkg));
-        });
-
-        List<Entry> recentEntries = new ArrayList<>();
-        for (Entry e : fresh) {
-            if (e.pkg != null && LastOpened.get(ctx, e.pkg) > 0 && e.kind != Entry.EMPTY) {
-                recentEntries.add(e);
-            }
-        }
-        Collections.sort(recentEntries, (a, b) -> Long.compare(LastOpened.get(ctx, b.pkg), LastOpened.get(ctx, a.pkg)));
-        if (recentEntries.isEmpty()) {
-            for (Entry e : fresh) {
-                if (e.pkg != null && !favourites.contains(e.pkg) && e.kind == Entry.APP) {
-                    recentEntries.add(e);
-                    if (recentEntries.size() >= 5) break;
-                }
+        // Built-in module cards (Remote Access, AirPlay Status) if enabled:
+        for (Cards.Card card : cards) {
+            if (card.state == Cards.State.SHOWN && !seen.contains(card.pkg)) {
+                Drawable icon = card.pkg.contains("airplay") ? ctx.getDrawable(R.drawable.ic_airplay) : ctx.getDrawable(R.drawable.ic_home_settings);
+                fresh.add(new Entry(Entry.CARD, card.label, card.component, null, icon, card.caption, card.accent));
             }
         }
 
-        List<Entry> allEntries = new ArrayList<>(fresh);
-        Collections.sort(allEntries, (a, b) -> {
-            if (allAppsSort == 2) {
-                long la = LastOpened.get(ctx, a.pkg), lb = LastOpened.get(ctx, b.pkg);
-                if (la > 0 || lb > 0) return Long.compare(lb, la);
-            } else if (allAppsSort == 0) {
-                int saved = Order.compare(savedRanks, a.component.flattenToShortString(), b.component.flattenToShortString());
-                if (saved != 0) return saved;
-            }
-            return a.label.compareToIgnoreCase(b.label);
-        });
-
-        items.clear();
         docked = 0;
-        emptySlots = 0;
-
-        int[] orderSeq = SECTION_SEQS[sectionOrder >= 0 && sectionOrder < SECTION_SEQS.length ? sectionOrder : 0];
-
-        for (int sec : orderSeq) {
-            if (sec == 0 && showDock && dockRow) {
-                items.addAll(pinnedEntries);
-                docked = pinnedEntries.size();
-                if (!reordering) {
-                    emptySlots = DockSlots.empty(docked, dockSize, pinnedEntries.size(), fillDock);
-                    for (int i = 0; i < emptySlots; i++) {
-                        items.add(new Entry(Entry.EMPTY, "", new ComponentName(ctx, "empty-dock-slot-" + i),
-                                null, null, null, 0));
-                    }
-                }
-            } else if (sec == 1 && recentApps && !recentEntries.isEmpty()) {
-                Entry shelfEntry = new Entry(Entry.RECENT_SHELF, ctx.getString(R.string.recent_apps_title),
-                        new ComponentName(ctx.getPackageName(), "shelf.recent"), null, null, null, 0);
-                shelfEntry.shelfApps = recentEntries;
-                items.add(shelfEntry);
-            } else if (sec == 2 && showAllApps) {
-                if ((showDock && dockRow) || recentApps) {
-                    items.add(new Entry(Entry.HEADER, ctx.getString(R.string.all_apps_title),
-                            new ComponentName(ctx.getPackageName(), "header.allapps"), null, null, null, 0));
-                }
-                items.addAll(allEntries);
-            }
+        while (docked < fresh.size() && isDocked(fresh.get(docked))) docked++;
+        emptySlots = dockRow && !reordering ? DockSlots.empty(docked, dockSize, fresh.size(), fillDock) : 0;
+        for (int i = 0; i < emptySlots; i++) {
+            fresh.add(docked + i, new Entry(Entry.EMPTY, "", new ComponentName(ctx, "empty-dock-slot-" + i),
+                    null, null, null, 0));
         }
+        items.clear();
+        items.addAll(fresh);
         notifyDataSetChanged();
     }
 
@@ -544,67 +467,16 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             });
             return new SimpleViewHolder(row);
         }
-        if (viewType == VIEW_TYPE_SECTION_HEADER) {
-            float density = ctx.getResources().getDisplayMetrics().density;
-            TextView header = new TextView(ctx);
-            header.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-            header.setPadding(Math.round(16 * density), Math.round(20 * density), Math.round(16 * density), Math.round(6 * density));
-            header.setTextColor(0xB3FFFFFF);
-            header.setTextSize(14f);
-            header.setLetterSpacing(0.06f);
-            header.setAllCaps(true);
-            header.setFocusable(false);
-            header.setFocusableInTouchMode(false);
-            return new SimpleViewHolder(header);
-        }
-        if (viewType == VIEW_TYPE_RECENT_SHELF) {
-            float density = ctx.getResources().getDisplayMetrics().density;
-            LinearLayout shelfLayout = new LinearLayout(ctx);
-            shelfLayout.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-            shelfLayout.setOrientation(LinearLayout.VERTICAL);
-            shelfLayout.setClipChildren(false);
-            shelfLayout.setClipToPadding(false);
-
-            TextView header = new TextView(ctx);
-            header.setPadding(Math.round(16 * density), Math.round(14 * density), Math.round(16 * density), Math.round(6 * density));
-            header.setTextColor(0xB3FFFFFF);
-            header.setTextSize(14f);
-            header.setLetterSpacing(0.06f);
-            header.setAllCaps(true);
-            header.setText(R.string.recent_apps_title);
-            header.setFocusable(false);
-            header.setFocusableInTouchMode(false);
-            shelfLayout.addView(header);
-
-            HorizontalScrollView scroller = new HorizontalScrollView(ctx);
-            scroller.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-            scroller.setHorizontalScrollBarEnabled(false);
-            scroller.setOverScrollMode(View.OVER_SCROLL_NEVER);
-            scroller.setClipChildren(false);
-            scroller.setClipToPadding(false);
-
-            LinearLayout container = new LinearLayout(ctx);
-            container.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-            container.setOrientation(LinearLayout.HORIZONTAL);
-            container.setClipChildren(false);
-            container.setClipToPadding(false);
-            container.setPadding(Math.round(16 * density), 0, Math.round(16 * density), Math.round(12 * density));
-
-            scroller.addView(container);
-            shelfLayout.addView(scroller);
-
-            return new SimpleViewHolder(shelfLayout);
-        }
         float density = parent.getResources().getDisplayMetrics().density;
         int width = parent.getWidth() > 0 ? parent.getWidth() : parent.getMeasuredWidth();
         int inner = width - parent.getPaddingLeft() - parent.getPaddingRight();
         int w = tileWidthPx(inner, parent.getHeight(), dockSize, rowsBelowDock, dockTitle, dockRow, density), h = tileHeightPx(w);
-        View v = createTileView(parent, w, h, density, false);
+        View v = createTileView(parent, w, h, density);
         if (singleRow) v.getLayoutParams().width = inner / dockSize;
         return new Holder(v, listener, animations, advancedEffects, reducedMotion, restNameAlpha, focusOvershoot);
     }
 
-    private View createTileView(ViewGroup parent, int w, int h, float density, boolean shelf) {
+    private View createTileView(ViewGroup parent, int w, int h, float density) {
         View v = LayoutInflater.from(ctx).inflate(R.layout.item_app, parent, false);
         View card = v.findViewById(R.id.card);
         ViewGroup.LayoutParams cardLp = card.getLayoutParams();
@@ -614,8 +486,8 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         View name = v.findViewById(R.id.name);
         ViewGroup.MarginLayoutParams nameLp = (ViewGroup.MarginLayoutParams) name.getLayoutParams();
         nameLp.width = w;
-        nameLp.topMargin = h + Math.round((shelf || dockRow ? 7 : 4) * density);
-        if (!shelf && !dockRow) {
+        nameLp.topMargin = h + Math.round((dockRow ? 7 : 4) * density);
+        if (!dockRow) {
             nameLp.height = Math.round(20 * density);
             int pad = Math.round(4 * density);
             v.setPadding(v.getPaddingLeft(), pad, v.getPaddingRight(), pad);
@@ -635,39 +507,6 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
         if (isLibraryAt(position)) return;
         Entry e = items.get(position);
-        if (e.kind == Entry.HEADER) {
-            ((TextView) holder.itemView).setText(e.label);
-            return;
-        }
-        if (e.kind == Entry.RECENT_SHELF) {
-            LinearLayout shelfLayout = (LinearLayout) holder.itemView;
-            HorizontalScrollView scroller = (HorizontalScrollView) shelfLayout.getChildAt(1);
-            LinearLayout container = (LinearLayout) scroller.getChildAt(0);
-            container.removeAllViews();
-            if (e.shelfApps != null) {
-                float density = ctx.getResources().getDisplayMetrics().density;
-                int width = shelfLayout.getWidth() > 0 ? shelfLayout.getWidth() : ctx.getResources().getDisplayMetrics().widthPixels;
-                int inner = width - Math.round(20 * density);
-                int w = tileWidthPx(inner, dockSize, density), h = tileHeightPx(w);
-
-                for (int i = 0; i < e.shelfApps.size(); i++) {
-                    Entry app = e.shelfApps.get(i);
-                    View v = createTileView(container, w, h, density, true);
-                    v.setLayoutParams(new LinearLayout.LayoutParams(w + Math.round(16 * density), ViewGroup.LayoutParams.WRAP_CONTENT));
-                    Holder hCard = new Holder(v, listener, animations, advancedEffects, reducedMotion, restNameAlpha, focusOvershoot);
-                    bindCard(hCard, app, true, i);
-                    hCard.card.setOnLongClickListener(vw -> {
-                        if (tileMenu) {
-                            listener.onTileLongPress(-1, vw);
-                            return true;
-                        }
-                        return false;
-                    });
-                    container.addView(v);
-                }
-            }
-            return;
-        }
         Holder h = (Holder) holder;
         if (e.kind == Entry.EMPTY) {
             // A free dock slot keeps its place in the row and the band, but shows nothing and takes no focus.
@@ -685,6 +524,19 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         bindCard(h, e, showName, position);
         h.card.setOnLongClickListener(v -> {
             if (tileMenu) {
+                int pos = h.getBindingAdapterPosition();
+                if (pos != RecyclerView.NO_POSITION) listener.onTileLongPress(pos, v);
+                return true;
+            }
+            Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + e.pkg));
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            try {
+                ctx.startActivity(i);
+            } catch (ActivityNotFoundException ignored) {
+            }
+            return true;
+        });
+    }
                 int pos = h.getBindingAdapterPosition();
                 if (pos != RecyclerView.NO_POSITION) listener.onTileLongPress(pos, v);
                 return true;
@@ -737,6 +589,37 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     /** Opens the tile's activity by explicit component, with no extras: a card can name nothing else. */
     private void launch(Entry e) {
+        if ("io.github.maxhayim.remoteaccess".equals(e.pkg)) {
+            Intent launch = ctx.getPackageManager().getLaunchIntentForPackage("io.github.maxhayim.remoteaccess");
+            if (launch != null) {
+                ctx.startActivity(launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                return;
+            }
+            HomeKeyService.allowStockLauncherUntil = android.os.SystemClock.uptimeMillis() + 8000;
+            Intent[] devIntents = {
+                    new Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS),
+                    new Intent("com.amazon.device.settings.DEVELOPMENT_SETTINGS"),
+                    new Intent().setComponent(new ComponentName("com.amazon.tv.settings.v2", "com.amazon.tv.settings.v2.development.DevelopmentActivity")),
+                    new Intent(Settings.ACTION_DEVICE_INFO_SETTINGS)
+            };
+            for (Intent it : devIntents) {
+                try {
+                    ctx.startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                    return;
+                } catch (Exception ignored) {
+                }
+            }
+            return;
+        }
+        if ("io.github.maxhayim.airplaystatus".equals(e.pkg)) {
+            Intent launch = ctx.getPackageManager().getLaunchIntentForPackage("io.github.maxhayim.airplaystatus");
+            if (launch != null) {
+                ctx.startActivity(launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                return;
+            }
+            SystemSettings.launchAirPlay(ctx);
+            return;
+        }
         if (e.kind == Entry.AIRPLAY
                 || "com.apple.airplay.amazon.airplay".equals(e.pkg)
                 || "AirPlay".equalsIgnoreCase(e.label)) {
@@ -800,13 +683,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     @Override
     public int getItemViewType(int position) {
-        if (isLibraryAt(position)) return VIEW_TYPE_LIBRARY;
-        if (position >= 0 && position < items.size()) {
-            Entry e = items.get(position);
-            if (e.kind == Entry.RECENT_SHELF) return VIEW_TYPE_RECENT_SHELF;
-            if (e.kind == Entry.HEADER) return VIEW_TYPE_SECTION_HEADER;
-        }
-        return VIEW_TYPE_APP;
+        return isLibraryAt(position) ? VIEW_TYPE_LIBRARY : VIEW_TYPE_APP;
     }
 
     boolean containsPackage(String pkg) {
@@ -831,10 +708,12 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     }
 
     /**
-     * A tile in the dock: strictly must be in favourites (pinned apps).
+     * A tile in the dock: one of the first savedDocked tiles of the saved order when one was recorded; else a dock_apps entry.
      */
     private boolean isDocked(Entry e) {
-        return favourites.contains(e.pkg);
+        if (savedDocked < 0) return favourites.contains(e.pkg);
+        Integer rank = savedRanks.get(e.component.flattenToShortString());
+        return rank != null && rank < savedDocked;
     }
 
     /** Reorder mode on or off; takes effect at the next reload() (empty dock slots are left out while on). */

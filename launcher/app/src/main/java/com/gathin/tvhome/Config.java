@@ -47,17 +47,18 @@ final class Config {
     static final String SHOW_ALL_APPS_KEY = "show_all_apps";
     static final String SECTION_ORDER_KEY = "section_order";
     static final String ALL_APPS_SORT_KEY = "all_apps_sort";
-    static final String RECENT_APPS_KEY = "recent_apps";
     static final String THEME_KEY = "chosen_theme";
     static final String THEME_DEFAULT = "default";
-    static final String THEME_OLED = "oled";
-    static final String THEME_GLASS = "glass";
+    static final String THEME_SKY = "sky";
+    static final String THEME_SCENES = "scenes";
     static final String THEME_AURORA = "aurora";
+    static final String THEME_GLASS = "glass";
+    static final String THEME_OLED = "oled";
+    static final String THEME_FRUTIGER_AERO = "frutiger_aero";
+    static final String THEME_WINDOWS_CLASSIC = "windows_classic";
     static final String THEME_CYBERPUNK = "cyberpunk";
     static final String THEME_FOREST = "forest";
     static final String THEME_SUNSET = "sunset";
-    static final String THEME_FRUTIGER_AERO = "frutiger_aero";
-    static final String THEME_WINDOWS_CLASSIC = "windows_classic";
     static final String THEME_VAPORWAVE = "vaporwave";
     static final String THEME_MATRIX = "matrix";
     /**
@@ -634,7 +635,33 @@ final class Config {
         glowStyle = GLOW_HORIZON;
 
         String chosenTheme = choices.getString(THEME_KEY, THEME_DEFAULT);
-        if (THEME_OLED.equals(chosenTheme)) {
+        if (THEME_SKY.equals(chosenTheme)) {
+            background = 0xFF050B14;
+            skyIntensity = 80;
+            dockGlass = true;
+            dockEvenPadding = true;
+            appGlow = true;
+            glowStyle = GLOW_HORIZON;
+        } else if (THEME_SCENES.equals(chosenTheme)) {
+            background = 0xFF080C14;
+            wallpaperRotationMinutes = 60;
+            wallpaperCaptions = true;
+            cinematic = true;
+            dockGlass = true;
+            appGlow = true;
+        } else if (THEME_AURORA.equals(chosenTheme)) {
+            background = 0xFF060D1E;
+            skyIntensity = 45;
+            dockGlass = true;
+            appGlow = true;
+        } else if (THEME_GLASS.equals(chosenTheme)) {
+            background = 0xFF090C14;
+            cinematic = true;
+            advancedEffects = true;
+            dockGlass = true;
+            appGlow = true;
+            glowStyle = GLOW_HORIZON;
+        } else if (THEME_OLED.equals(chosenTheme)) {
             background = 0xFF000000;
             dockOpacity = 100;
             dockGlass = false;
@@ -650,13 +677,6 @@ final class Config {
             skyIntensity = 0;
             advancedEffects = false;
             dockEvenPadding = false;
-        } else if (THEME_GLASS.equals(chosenTheme)) {
-            background = 0xFF090C14;
-            cinematic = true;
-            advancedEffects = true;
-        } else if (THEME_AURORA.equals(chosenTheme)) {
-            background = 0xFF060D1E;
-            skyIntensity = 45;
         } else if (THEME_CYBERPUNK.equals(chosenTheme)) {
             background = 0xFF0E0616;
             skyIntensity = 25;
@@ -689,11 +709,16 @@ final class Config {
             background = 0xFF090C14;
         }
 
-        boolean showDock = choices.getBoolean(SHOW_DOCK_KEY, true);
-        boolean recentApps = choices.getBoolean(RECENT_APPS_KEY, true);
-        boolean showAllApps = choices.getBoolean(SHOW_ALL_APPS_KEY, true);
-        int sectionOrder = choices.getInt(SECTION_ORDER_KEY, 0);
-        int allAppsSort = choices.getInt(ALL_APPS_SORT_KEY, 0);
+        boolean clockScreensaver = choices.getBoolean("clock_screensaver", idleClockMinutes > 0);
+        if (choices.contains("clock_screensaver")) {
+            idleClockMinutes = clockScreensaver ? 5 : 0;
+        }
+
+        boolean showDock = true;
+        boolean recentApps = false;
+        boolean showAllApps = true;
+        int sectionOrder = 0;
+        int allAppsSort = 0;
         if (!showDock) dockRow = false;
 
         return new Config(dock, fillDock, hidden, libraryApps, liveTv, liveTvAction, liveTvInputId, packageMap(launchActions), packageMap(appLabels),

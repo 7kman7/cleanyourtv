@@ -150,27 +150,12 @@
             android:textSize="14sp" />
 
         <TextView
-            android:id="@+id/showDockChoice"
+            android:id="@+id/clockScreensaverChoice"
             style="@style/SettingsRow"
             android:layout_marginTop="28dp" />
 
         <TextView
-            android:id="@+id/recentAppsChoice"
-            style="@style/SettingsRow"
-            android:layout_marginTop="18dp" />
-
-        <TextView
-            android:id="@+id/showAllAppsChoice"
-            style="@style/SettingsRow"
-            android:layout_marginTop="18dp" />
-
-        <TextView
-            android:id="@+id/sectionOrderChoice"
-            style="@style/SettingsRow"
-            android:layout_marginTop="18dp" />
-
-        <TextView
-            android:id="@+id/allAppsSortChoice"
+            android:id="@+id/adbChoice"
             style="@style/SettingsRow"
             android:layout_marginTop="18dp" />
 

@@ -33,7 +33,8 @@ public final class LauncherSettingsActivity extends Activity {
     private TextView advancedChoice;
     private TextView followThemeChoice;
     private TextView openOnStartChoice;
-    private TextView recentAppsChoice;
+    private TextView clockScreensaverChoice;
+    private TextView adbChoice;
     private TextView overrideLauncherChoice;
     private TextView startAtBootChoice;
     private TextView moduleCardsChoice;
@@ -42,45 +43,40 @@ public final class LauncherSettingsActivity extends Activity {
     private int dockOpacity;
     private boolean animations;
     private boolean advancedEffects;
+    private boolean clockScreensaver;
     private boolean overrideLauncher;
     private boolean startAtBoot;
     private boolean moduleCards;
-    private boolean recentApps;
-    private boolean showDock;
-    private boolean showAllApps;
-    private int sectionOrder;
-    private int allAppsSort;
     private String chosenTheme;
-
-    private TextView showDockChoice;
-    private TextView showAllAppsChoice;
-    private TextView sectionOrderChoice;
-    private TextView allAppsSortChoice;
 
     private static final String[] THEME_KEYS = {
             Config.THEME_DEFAULT,
-            Config.THEME_OLED,
-            Config.THEME_GLASS,
+            Config.THEME_SKY,
+            Config.THEME_SCENES,
             Config.THEME_AURORA,
+            Config.THEME_GLASS,
+            Config.THEME_OLED,
+            Config.THEME_FRUTIGER_AERO,
+            Config.THEME_WINDOWS_CLASSIC,
             Config.THEME_CYBERPUNK,
             Config.THEME_FOREST,
             Config.THEME_SUNSET,
-            Config.THEME_FRUTIGER_AERO,
-            Config.THEME_WINDOWS_CLASSIC,
             Config.THEME_VAPORWAVE,
             Config.THEME_MATRIX
     };
 
     private static final int[] THEME_RES = {
             R.string.theme_default,
-            R.string.theme_oled,
-            R.string.theme_glass,
+            R.string.theme_sky,
+            R.string.theme_scenes,
             R.string.theme_aurora,
+            R.string.theme_glass,
+            R.string.theme_oled,
+            R.string.theme_frutiger_aero,
+            R.string.theme_windows_classic,
             R.string.theme_cyberpunk,
             R.string.theme_forest,
             R.string.theme_sunset,
-            R.string.theme_frutiger_aero,
-            R.string.theme_windows_classic,
             R.string.theme_vaporwave,
             R.string.theme_matrix
     };
@@ -186,49 +182,26 @@ public final class LauncherSettingsActivity extends Activity {
             openOnStartChoice.setOnClickListener(v -> showOpenOnStartPicker());
         }
 
-        showDock = choices.getBoolean(Config.SHOW_DOCK_KEY, true);
-        showDockChoice = findViewById(R.id.showDockChoice);
-        showDockChoice.setOnClickListener(v -> {
-            showDock = !showDock;
-            choices.edit().putBoolean(Config.SHOW_DOCK_KEY, showDock).apply();
+        clockScreensaver = choices.getBoolean("clock_screensaver", config.homeIdleClockMinutes > 0);
+        clockScreensaverChoice = findViewById(R.id.clockScreensaverChoice);
+        clockScreensaverChoice.setOnClickListener(v -> {
+            clockScreensaver = !clockScreensaver;
+            choices.edit().putBoolean("clock_screensaver", clockScreensaver).apply();
             changed();
             refresh();
         });
 
-        recentApps = choices.getBoolean(Config.RECENT_APPS_KEY, true);
-        recentAppsChoice = findViewById(R.id.recentAppsChoice);
-        recentAppsChoice.setOnClickListener(v -> {
-            recentApps = !recentApps;
-            choices.edit().putBoolean(Config.RECENT_APPS_KEY, recentApps).apply();
-            changed();
-            refresh();
-        });
-
-        showAllApps = choices.getBoolean(Config.SHOW_ALL_APPS_KEY, true);
-        showAllAppsChoice = findViewById(R.id.showAllAppsChoice);
-        showAllAppsChoice.setOnClickListener(v -> {
-            showAllApps = !showAllApps;
-            choices.edit().putBoolean(Config.SHOW_ALL_APPS_KEY, showAllApps).apply();
-            changed();
-            refresh();
-        });
-
-        sectionOrder = choices.getInt(Config.SECTION_ORDER_KEY, 0);
-        sectionOrderChoice = findViewById(R.id.sectionOrderChoice);
-        sectionOrderChoice.setOnClickListener(v -> {
-            sectionOrder = (sectionOrder + 1) % 4;
-            choices.edit().putInt(Config.SECTION_ORDER_KEY, sectionOrder).apply();
-            changed();
-            refresh();
-        });
-
-        allAppsSort = choices.getInt(Config.ALL_APPS_SORT_KEY, 0);
-        allAppsSortChoice = findViewById(R.id.allAppsSortChoice);
-        allAppsSortChoice.setOnClickListener(v -> {
-            allAppsSort = (allAppsSort + 1) % 3;
-            choices.edit().putInt(Config.ALL_APPS_SORT_KEY, allAppsSort).apply();
-            changed();
-            refresh();
+        adbChoice = findViewById(R.id.adbChoice);
+        adbChoice.setOnClickListener(v -> {
+            boolean current = Settings.Global.getInt(getContentResolver(), Settings.Global.ADB_ENABLED, 0) == 1;
+            boolean target = !current;
+            try {
+                Settings.Global.putInt(getContentResolver(), Settings.Global.ADB_ENABLED, target ? 1 : 0);
+                Settings.Global.putInt(getContentResolver(), "adb_wifi_enabled", target ? 1 : 0);
+                refresh();
+            } catch (Exception e) {
+                openDeveloperSettings();
+            }
         });
 
         overrideLauncher = choices.getBoolean("override_launcher", true);
@@ -262,9 +235,7 @@ public final class LauncherSettingsActivity extends Activity {
                     .remove("advanced_effects").remove(Config.WALLPAPER_CHOICE_KEY)
                     .remove(Config.DOCK_OPACITY_KEY).remove(OpenOnStart.KEY)
                     .remove("override_launcher").remove("start_at_boot").remove("module_cards")
-                    .remove(Config.SHOW_DOCK_KEY).remove(Config.RECENT_APPS_KEY)
-                    .remove(Config.SHOW_ALL_APPS_KEY).remove(Config.SECTION_ORDER_KEY)
-                    .remove(Config.ALL_APPS_SORT_KEY).remove(Config.THEME_KEY).commit();
+                    .remove("clock_screensaver").remove(Config.THEME_KEY).commit();
             Config current = Config.load(this);
             columns = current.columns;
             rowsBelowDock = current.rowsBelowDock;
@@ -272,11 +243,12 @@ public final class LauncherSettingsActivity extends Activity {
             animations = current.animations;
             advancedEffects = current.animations && current.advancedEffects;
             chosenTheme = current.chosenTheme;
-            showDock = current.showDock;
-            recentApps = current.recentApps;
-            showAllApps = current.showAllApps;
-            sectionOrder = current.sectionOrder;
-            allAppsSort = current.allAppsSort;
+            clockScreensaver = current.homeIdleClockMinutes > 0;
+            View r = findViewById(R.id.settingsRoot);
+            if (r != null) r.setBackgroundColor(current.backgroundColor);
+            changed();
+            refresh();
+        });
             View r = findViewById(R.id.settingsRoot);
             if (r != null) r.setBackgroundColor(current.backgroundColor);
             changed();
@@ -310,27 +282,6 @@ public final class LauncherSettingsActivity extends Activity {
             if (THEME_KEYS[i].equals(key)) return getString(THEME_RES[i]);
         }
         return getString(R.string.theme_default);
-    }
-
-    private static final int[] ORDER_RES = {
-            R.string.order_pinned_recent_all,
-            R.string.order_recent_pinned_all,
-            R.string.order_pinned_all_recent,
-            R.string.order_all_recent_pinned
-    };
-
-    private static final int[] SORT_RES = {
-            R.string.sort_custom,
-            R.string.sort_alphabetical,
-            R.string.sort_most_used
-    };
-
-    private String sectionOrderName(int order) {
-        return getString(ORDER_RES[order >= 0 && order < ORDER_RES.length ? order : 0]);
-    }
-
-    private String allAppsSortName(int sort) {
-        return getString(SORT_RES[sort >= 0 && sort < SORT_RES.length ? sort : 0]);
     }
 
     private void showThemePicker() {
@@ -490,16 +441,11 @@ public final class LauncherSettingsActivity extends Activity {
                         : wallpaperCurrent != null ? wallpaperCurrent
                         : getString(R.string.wallpaper_theme_default)));
         openOnStartChoice.setText(getString(R.string.open_on_start_state, openOnStartLabel()));
-        showDockChoice.setText(getString(R.string.show_dock_state,
-                getString(showDock ? R.string.on : R.string.off)));
-        recentAppsChoice.setText(getString(R.string.recent_apps_state,
-                getString(recentApps ? R.string.on : R.string.off)));
-        showAllAppsChoice.setText(getString(R.string.show_all_apps_state,
-                getString(showAllApps ? R.string.on : R.string.off)));
-        sectionOrderChoice.setText(getString(R.string.section_order_state,
-                sectionOrderName(sectionOrder)));
-        allAppsSortChoice.setText(getString(R.string.all_apps_sort_state,
-                allAppsSortName(allAppsSort)));
+        clockScreensaverChoice.setText(getString(R.string.clock_screensaver_state,
+                getString(clockScreensaver ? R.string.on : R.string.off)));
+        boolean adbOn = Settings.Global.getInt(getContentResolver(), Settings.Global.ADB_ENABLED, 0) == 1;
+        adbChoice.setText(getString(R.string.adb_state,
+                getString(adbOn ? R.string.on : R.string.off)));
         overrideLauncherChoice.setText(getString(R.string.override_launcher_state,
                 getString(overrideLauncher ? R.string.on : R.string.off)));
         startAtBootChoice.setText(getString(R.string.run_at_startup_state,
@@ -509,15 +455,38 @@ public final class LauncherSettingsActivity extends Activity {
         followThemeChoice.setSelected(!hasOnTvChoices());
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        refresh();
+    }
+
+    private void openDeveloperSettings() {
+        HomeKeyService.allowStockLauncherUntil = android.os.SystemClock.uptimeMillis() + 8000;
+        Intent[] intents = {
+                new Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS),
+                new Intent("com.amazon.device.settings.DEVELOPMENT_SETTINGS"),
+                new Intent().setComponent(new ComponentName("com.amazon.tv.settings.v2", "com.amazon.tv.settings.v2.development.DevelopmentActivity")),
+                new Intent().setComponent(new ComponentName("com.android.tv.settings", "com.android.tv.settings.device.apps.specialaccess.DeveloperOptionsActivity")),
+                new Intent(Settings.ACTION_DEVICE_INFO_SETTINGS)
+        };
+        for (Intent it : intents) {
+            try {
+                startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                return;
+            } catch (Exception ignored) {
+            }
+        }
+        Toast.makeText(this, R.string.not_available, Toast.LENGTH_SHORT).show();
+    }
+
     private boolean hasOnTvChoices() {
         return choices.contains("columns") || choices.contains(Config.ROWS_BELOW_DOCK_KEY)
                 || choices.contains("animations") || choices.contains("advanced_effects")
                 || choices.contains(Config.WALLPAPER_CHOICE_KEY) || choices.contains(Config.DOCK_OPACITY_KEY)
                 || choices.contains(OpenOnStart.KEY) || choices.contains("override_launcher")
                 || choices.contains("start_at_boot") || choices.contains("module_cards")
-                || choices.contains(Config.SHOW_DOCK_KEY) || choices.contains(Config.RECENT_APPS_KEY)
-                || choices.contains(Config.SHOW_ALL_APPS_KEY) || choices.contains(Config.SECTION_ORDER_KEY)
-                || choices.contains(Config.ALL_APPS_SORT_KEY) || choices.contains(Config.THEME_KEY);
+                || choices.contains("clock_screensaver") || choices.contains(Config.THEME_KEY);
     }
 
     private void open(Intent intent) {
