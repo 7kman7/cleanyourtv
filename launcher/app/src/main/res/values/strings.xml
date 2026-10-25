@@ -172,17 +172,12 @@
     <string name="theme_vaporwave" translatable="false">Solarized Vaporwave</string>
     <string name="theme_matrix" translatable="false">Matrix Phosphor</string>
     <string name="show_dock_state" translatable="false">Pinned apps dock: %1$s</string>
-    <string name="show_dock_help" translatable="false">Show the top row of pinned favourite apps</string>
     <string name="recent_apps_state" translatable="false">Recent apps shelf: %1$s</string>
-    <string name="recent_apps_help" translatable="false">Show a horizontal scrolling shelf of recently launched apps</string>
     <string name="recent_apps_title" translatable="false">Recent Apps</string>
     <string name="all_apps_title" translatable="false">All Apps</string>
     <string name="show_all_apps_state" translatable="false">All apps section: %1$s</string>
-    <string name="show_all_apps_help" translatable="false">Show the grid of all installed apps</string>
     <string name="section_order_state" translatable="false">Section order: %1$s</string>
-    <string name="section_order_help" translatable="false">Arrange the order of sections on the home screen</string>
     <string name="all_apps_sort_state" translatable="false">All apps sort: %1$s</string>
-    <string name="all_apps_sort_help" translatable="false">Sort all apps manually, alphabetically, or by most used</string>
     <string name="sort_custom" translatable="false">Custom</string>
     <string name="sort_alphabetical" translatable="false">Alphabetical</string>
     <string name="sort_most_used" translatable="false">Most opened</string>
