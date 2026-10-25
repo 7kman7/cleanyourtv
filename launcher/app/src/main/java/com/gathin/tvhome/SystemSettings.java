@@ -7,6 +7,8 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.net.Uri;
 import android.provider.Settings;
+import java.util.ArrayList;
+import java.util.List;
 
 /** The standard settings intent, or, when nothing usable answers it, the first vendor settings entry
  *  from settings_fallback_components that is installed (Xiaomi China, TCL / FFALCON, Fire OS). */
@@ -243,7 +245,7 @@ final class SystemSettings {
      */
     static boolean launchAirPlay(Context context) {
         PackageManager pm = context.getPackageManager();
-        java.util.List<Intent> intents = new java.util.ArrayList<>();
+        List<Intent> intents = new ArrayList<>();
 
         // 1. PhairPlay if installed (opens directly to AirPlay receiver)
         Intent phairplay = phairPlayIntent(context);
