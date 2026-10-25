@@ -120,6 +120,24 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         return itemHeightPx(tileHeightPx, true, density);
     }
 
+    static boolean isUnwantedPromoApp(String pkg, String label) {
+        if (pkg != null) {
+            String p = pkg.toLowerCase();
+            if (p.contains(".opapp") || p.equals("com.mediatek.opapp") || p.equals("org.droidtv.m7opapp")
+                    || p.equals("com.mstar.opapp") || p.equals("com.ses.opapp")) {
+                return true;
+            }
+        }
+        if (label != null) {
+            String l = label.toLowerCase();
+            if (l.contains("vlaanderen") || l.contains("telesat") || l.contains("skylink")
+                    || l.contains("canal digitaal") || l.contains("hd austria") || l.contains("m7 opapp")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** The same for either layout: the plain grid (dock_row false) uses the compact spacing. */
     static int itemHeightPx(int tileHeightPx, boolean dockRow, float density) {
         return tileHeightPx + Math.round((dockRow ? ITEM_EXTRA_DP : COMPACT_ITEM_EXTRA_DP) * density);
@@ -290,6 +308,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             // redraw the tile name as something else (#117).
             String label = card != null ? card.label : Cards.cleanLabel(
                     appLabels.containsKey(pkg) ? appLabels.get(pkg) : String.valueOf(ri.loadLabel(pm)), pkg);
+            if (isUnwantedPromoApp(pkg, label)) continue;
             if (!seen.add(pkg + '\n' + label)) continue;
             Drawable banner = null;
             // uniform_tiles draws the icon, so an app's banner is never loaded. A module card keeps its banner.

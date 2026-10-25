@@ -347,6 +347,7 @@
                 <TextView
                     android:id="@+id/btnLauncherSettings"
                     style="@style/TopButton"
+                    android:visibility="gone"
                     android:text="@string/launcher_settings"
                     android:drawableStart="@drawable/ic_home_settings_pill"
                     android:nextFocusDown="@+id/grid" />

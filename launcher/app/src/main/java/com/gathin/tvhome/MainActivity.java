@@ -682,11 +682,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         View btnSettings = findViewById(R.id.btnSettings);
         View btnLauncherSettings = findViewById(R.id.btnLauncherSettings);
         if (btnLauncherSettings != null) {
-            btnLauncherSettings.setOnClickListener(v -> showSettingsMenu());
-            btnLauncherSettings.setOnLongClickListener(v -> {
-                startActivityForResult(new Intent(this, LauncherSettingsActivity.class), LAUNCHER_SETTINGS_REQUEST);
-                return true;
-            });
+            btnLauncherSettings.setVisibility(View.GONE);
         }
         btnInputs.setOnClickListener(v -> showInputs());
         btnWifi.setOnClickListener(v -> openNetworkPill());
@@ -694,10 +690,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             open(systemIntent(Settings.ACTION_WIFI_SETTINGS));
             return true;
         });
-        launcherSettingsButton = cfg.launcherSettingsButton;
-        btnSettings.setOnClickListener(v -> open(systemIntent(Settings.ACTION_SETTINGS)));
+        launcherSettingsButton = false;
+        btnSettings.setOnClickListener(v -> showSettingsMenu());
         btnSettings.setOnLongClickListener(v -> {
-            showSettingsMenu();
+            startActivityForResult(new Intent(this, LauncherSettingsActivity.class), LAUNCHER_SETTINGS_REQUEST);
             return true;
         });
         btnReorder = findViewById(R.id.btnReorder);
@@ -3159,8 +3155,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     /** The header opens launcher settings directly; hold OK keeps the extra home actions available. */
     private void showSettingsMenu() {
-        View anchor = findViewById(R.id.btnLauncherSettings);
-        if (anchor == null) anchor = findViewById(R.id.btnSettings);
+        View anchor = findViewById(R.id.btnSettings);
+        if (anchor == null || anchor.getVisibility() != View.VISIBLE) anchor = findViewById(R.id.btnLauncherSettings);
         View panel = getLayoutInflater().inflate(R.layout.popup_inputs, root, false);
         LinearLayout rows = panel.findViewById(R.id.rows);
         PopupWindow popup = glassPopup(panel, (int) (220 * density));

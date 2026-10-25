@@ -225,6 +225,7 @@ final class AppLibraryDialog {
                 for (ResolveInfo info : pm.queryIntentActivities(new Intent(Intent.ACTION_MAIN).addCategory(category), 0)) {
                     if (info.activityInfo == null || !info.activityInfo.exported) continue;
                     String pkg = info.activityInfo.packageName;
+                    if (AppAdapter.isUnwantedPromoApp(pkg, null)) continue;
                     if (Intent.CATEGORY_LEANBACK_LAUNCHER.equals(category)) tv.add(pkg);
                     if (!pkg.equals(self) && !unique.containsKey(pkg)) unique.put(pkg, info);
                 }
@@ -246,8 +247,12 @@ final class AppLibraryDialog {
                     known = new Known(updated, loadLabel(pm, entry.getValue()));
                     KNOWN.put(pkg, known);
                 }
+                if (AppAdapter.isUnwantedPromoApp(pkg, known.label)) {
+                    continue;
+                }
                 names.put(pkg, known.label);
             }
+            unique.keySet().retainAll(names.keySet());
             KNOWN.keySet().retainAll(unique.keySet());
             main.post(() -> {
                 if (closed || !loads.isLatest(load)) return;
