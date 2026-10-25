@@ -63,12 +63,12 @@ jobs:
         working-directory: launcher
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon assembleRelease testReleaseUnitTest lintRelease --stacktrace 2>&1 | tee /tmp/gradle.log || {
-            echo "::error::Gradle build failed"
-            tail -n 80 /tmp/gradle.log
-            find app/build/reports -type f -exec head -n 40 {} + 2>/dev/null || true
-            exit 1
-          }
+          ./gradlew --no-daemon assembleRelease testReleaseUnitTest lintRelease --stacktrace > /tmp/gradle.log 2>&1 || true
+          echo "### Gradle Log" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tail -n 100 /tmp/gradle.log >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          grep -q "BUILD SUCCESSFUL" /tmp/gradle.log || exit 1
       - name: The launcher stays small
         run: |
           size=$(stat -c %s launcher/app/build/outputs/apk/release/app-release.apk)
