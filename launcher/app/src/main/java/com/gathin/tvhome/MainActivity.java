@@ -1169,7 +1169,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                     holder.banner.setVisibility(View.GONE);
                     holder.icon.setVisibility(View.GONE);
                 }
-                holder.card.setOnClickListener(v -> ContinueWatching.launch(MainActivity.this, item));
+                holder.card.setOnClickListener(v -> {
+                    int pos = holder.getBindingAdapterPosition();
+                    if (pos >= 0 && pos < items.size()) {
+                        ContinueWatching.launch(MainActivity.this, items.get(pos));
+                    }
+                });
                 holder.card.setOnFocusChangeListener((v, hasFocus) -> {
                     v.animate().scaleX(hasFocus ? 1.08f : 1.0f).scaleY(hasFocus ? 1.08f : 1.0f).setDuration(150).start();
                 });

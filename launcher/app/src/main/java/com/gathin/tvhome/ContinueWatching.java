@@ -72,12 +72,8 @@ public final class ContinueWatching {
                             long time = timeIdx >= 0 ? c.getLong(timeIdx) : 0;
 
                             Uri posterUri = posterStr != null ? Uri.parse(posterStr) : null;
-                            Drawable banner = null;
-                            Drawable icon = null;
-                            try {
-                                icon = pm.getApplicationIcon(pkg);
-                                banner = pm.getApplicationBanner(pkg);
-                            } catch (Exception ignored) {}
+                            Drawable banner = loadBanner(pm, pkg);
+                            Drawable icon = loadIcon(pm, pkg);
 
                             String appName = pkg;
                             try {
@@ -104,11 +100,8 @@ public final class ContinueWatching {
                 String appName = pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString();
                 long when = LastOpened.get(context, pkg);
                 String sub = when > 0 ? LastOpened.describe(context, when) : context.getString(R.string.dock_title_fallback);
-                Drawable banner = null;
-                try {
-                    banner = pm.getApplicationBanner(pkg);
-                } catch (Exception ignored) {}
-                Drawable icon = pm.getApplicationIcon(pkg);
+                Drawable banner = loadBanner(pm, pkg);
+                Drawable icon = loadIcon(pm, pkg);
                 items.add(new Item(pkg, appName, sub, null, null, when, icon, banner));
             } catch (Exception ignored) {
             }
@@ -117,6 +110,23 @@ public final class ContinueWatching {
         // Sort by last engagement / opened time descending
         Collections.sort(items, (a, b) -> Long.compare(b.lastEngagementTime, a.lastEngagementTime));
         return items;
+    }
+
+    private static Drawable loadBanner(PackageManager pm, String pkg) {
+        try {
+            android.content.pm.ApplicationInfo ai = pm.getApplicationInfo(pkg, 0);
+            return pm.getApplicationBanner(ai);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private static Drawable loadIcon(PackageManager pm, String pkg) {
+        try {
+            return pm.getApplicationIcon(pkg);
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     public static void launch(Context context, Item item) {
