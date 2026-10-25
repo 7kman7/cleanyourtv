@@ -215,10 +215,6 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private float density;
     /** Module cards (res/values/config.xml, module_cards): discovered on resume, shown only after the owner's Show. */
     private boolean moduleCards;
-    private LinearLayout continueWatchingSection;
-    private RecyclerView continueWatchingRow;
-    private boolean continueWatching;
-    private Set<String> continueWatchingPackages = Collections.emptySet();
     /** config settings_key_keycodes / settings_key_panel, so the Settings button works on Home without HomeKeyService. */
     private int[] settingsKeycodes = new int[0];
     private boolean settingsKeyPanel;
@@ -494,14 +490,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         vpnApp = cfg.vpnApp;
         moduleCards = cfg.moduleCards;
         hiddenApps = new HashSet<>(cfg.hiddenApps);
-        SystemSettings.ensureAirPlayRunning(this);
-        SystemSettings.warmPhairPlay(this);
-
-        continueWatchingSection = findViewById(R.id.continueWatchingSection);
-        continueWatchingRow = findViewById(R.id.continueWatchingRow);
-        if (continueWatchingRow != null) {
-            continueWatchingRow.setLayoutManager(new LinearLayoutManager(this, RecyclerView.HORIZONTAL, false));
-        }
+        SystemSettings.ensureNativeAirPlayRunning(this);
 
         grid = findViewById(R.id.grid);
         rtlAppGrid = getResources().getBoolean(R.bool.rtl_app_grid);
@@ -944,9 +933,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             recreate();
             return;
         }
-        SystemSettings.ensureAirPlayRunning(this);
-        SystemSettings.warmPhairPlay(this);
-        updateContinueWatching();
+        SystemSettings.ensureNativeAirPlayRunning(this);
         restartIdleClock();
         promptsPaused = false;
         if (grid.getAdapter() == null) grid.setAdapter(adapter);   // dropped by onTrimMemory
@@ -1111,99 +1098,6 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         lastFocusedKey = returnKey;
         lastFocused = returnSlot;
         packageSequence = currentPackageSequence(packageSequence);
-        updateContinueWatching();
-    }
-
-    private void updateTopButtonNavigation(boolean hasContinueWatching) {
-        int target = hasContinueWatching ? R.id.continueWatchingRow : R.id.grid;
-        for (int id : new int[]{R.id.btnInputs, R.id.btnWifi, R.id.btnSettings, R.id.btnLauncherSettings, R.id.btnReorder, R.id.btnLibraryTop}) {
-            View v = findViewById(id);
-            if (v != null) v.setNextFocusDownId(target);
-        }
-    }
-
-    private void updateContinueWatching() {
-        if (continueWatchingSection == null || continueWatchingRow == null) return;
-        SharedPreferences choices = getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE);
-        continueWatching = choices.getBoolean("continue_watching", false);
-        continueWatchingPackages = choices.getStringSet("continue_watching_packages", Collections.emptySet());
-
-        if (!continueWatching || continueWatchingPackages.isEmpty()) {
-            continueWatchingSection.setVisibility(View.GONE);
-            updateTopButtonNavigation(false);
-            return;
-        }
-
-        List<ContinueWatching.Item> items = ContinueWatching.load(this, continueWatchingPackages);
-        if (items.isEmpty()) {
-            continueWatchingSection.setVisibility(View.GONE);
-            updateTopButtonNavigation(false);
-            return;
-        }
-
-        continueWatchingSection.setVisibility(View.VISIBLE);
-        updateTopButtonNavigation(true);
-        continueWatchingRow.setAdapter(new RecyclerView.Adapter<ContinueWatchingViewHolder>() {
-            @NonNull
-            @Override
-            public ContinueWatchingViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-                View v = getLayoutInflater().inflate(R.layout.item_continue_watching, parent, false);
-                return new ContinueWatchingViewHolder(v);
-            }
-
-            @Override
-            public void onBindViewHolder(@NonNull ContinueWatchingViewHolder holder, int position) {
-                ContinueWatching.Item item = items.get(position);
-                holder.title.setText(item.title);
-                holder.subtitle.setText(item.subtitle);
-                if (item.banner != null) {
-                    holder.banner.setImageDrawable(item.banner);
-                    holder.banner.setVisibility(View.VISIBLE);
-                    holder.icon.setVisibility(View.GONE);
-                } else if (item.icon != null) {
-                    holder.banner.setImageDrawable(null);
-                    holder.banner.setVisibility(View.GONE);
-                    holder.icon.setImageDrawable(item.icon);
-                    holder.icon.setVisibility(View.VISIBLE);
-                } else {
-                    holder.banner.setVisibility(View.GONE);
-                    holder.icon.setVisibility(View.GONE);
-                }
-                holder.card.setOnClickListener(v -> {
-                    int pos = holder.getBindingAdapterPosition();
-                    if (pos >= 0 && pos < items.size()) {
-                        ContinueWatching.launch(MainActivity.this, items.get(pos));
-                    }
-                });
-                holder.card.setOnFocusChangeListener((v, hasFocus) -> {
-                    v.animate().scaleX(hasFocus ? 1.08f : 1.0f).scaleY(hasFocus ? 1.08f : 1.0f).setDuration(150).start();
-                });
-                holder.card.setNextFocusUpId(R.id.btnLauncherSettings);
-                holder.card.setNextFocusDownId(R.id.grid);
-            }
-
-            @Override
-            public int getItemCount() {
-                return items.size();
-            }
-        });
-    }
-
-    static class ContinueWatchingViewHolder extends RecyclerView.ViewHolder {
-        final View card;
-        final ImageView banner;
-        final ImageView icon;
-        final TextView title;
-        final TextView subtitle;
-
-        ContinueWatchingViewHolder(View v) {
-            super(v);
-            card = v.findViewById(R.id.card);
-            banner = v.findViewById(R.id.banner);
-            icon = v.findViewById(R.id.icon);
-            title = v.findViewById(R.id.title);
-            subtitle = v.findViewById(R.id.subtitle);
-        }
     }
 
     /**
@@ -2345,11 +2239,6 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
         if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
             if (position < COLUMNS) {
-                if (continueWatchingSection != null && continueWatchingSection.getVisibility() == View.VISIBLE
-                        && continueWatchingRow != null && continueWatchingRow.getChildCount() > 0) {
-                    continueWatchingRow.getChildAt(0).requestFocus();
-                    return true;
-                }
                 return false;          // dock row: let focus move to the top bar
             }
             target = position - COLUMNS;

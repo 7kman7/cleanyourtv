@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/settingsRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FF101419"
+    android:background="#FF090C14"
     android:fillViewport="true">
 
     <LinearLayout
@@ -19,7 +20,8 @@
             android:layout_height="wrap_content"
             android:text="@string/launcher_settings"
             android:textColor="#FFFFFFFF"
-            android:textSize="34sp" />
+            android:textSize="34sp"
+            android:fontFamily="@string/font_medium" />
 
         <TextView
             android:id="@+id/reorderChoice"
@@ -34,7 +36,8 @@
             android:layout_marginTop="28dp"
             android:text="@string/columns_label"
             android:textColor="#FFFFFFFF"
-            android:textSize="20sp" />
+            android:textSize="20sp"
+            android:fontFamily="@string/font_medium" />
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -54,7 +57,8 @@
             android:layout_marginTop="18dp"
             android:text="@string/rows_below_dock_label"
             android:textColor="#FFFFFFFF"
-            android:textSize="20sp" />
+            android:textSize="20sp"
+            android:fontFamily="@string/font_medium" />
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -74,7 +78,8 @@
             android:layout_marginTop="18dp"
             android:text="@string/dock_opacity_label"
             android:textColor="#FFFFFFFF"
-            android:textSize="20sp" />
+            android:textSize="20sp"
+            android:fontFamily="@string/font_medium" />
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -89,9 +94,22 @@
         </LinearLayout>
 
         <TextView
-            android:id="@+id/wallpaperChoice"
+            android:id="@+id/themeChoice"
             style="@style/SettingsRow"
             android:layout_marginTop="28dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="7dp"
+            android:text="@string/theme_help"
+            android:textColor="#B3FFFFFF"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/wallpaperChoice"
+            style="@style/SettingsRow"
+            android:layout_marginTop="18dp" />
 
         <TextView
             android:id="@+id/animationsChoice"
@@ -108,7 +126,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:text="@string/advanced_effects_warning"
-            android:textColor="#FFACB8C1"
+            android:textColor="#B3FFFFFF"
             android:textSize="14sp" />
 
         <TextView
@@ -128,7 +146,20 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="7dp"
             android:text="@string/follow_theme_hint"
-            android:textColor="#FFACB8C1"
+            android:textColor="#B3FFFFFF"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/recentAppsDockChoice"
+            style="@style/SettingsRow"
+            android:layout_marginTop="28dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="7dp"
+            android:text="@string/recent_apps_dock_help"
+            android:textColor="#B3FFFFFF"
             android:textSize="14sp" />
 
         <TextView
@@ -141,7 +172,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="7dp"
             android:text="@string/override_launcher_help"
-            android:textColor="#FFACB8C1"
+            android:textColor="#B3FFFFFF"
             android:textSize="14sp" />
 
         <TextView
@@ -154,7 +185,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="7dp"
             android:text="@string/run_at_startup_help"
-            android:textColor="#FFACB8C1"
+            android:textColor="#B3FFFFFF"
             android:textSize="14sp" />
 
         <TextView
@@ -167,34 +198,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="7dp"
             android:text="@string/module_cards_help"
-            android:textColor="#FFACB8C1"
-            android:textSize="14sp" />
-
-        <TextView
-            android:id="@+id/continueWatchingChoice"
-            style="@style/SettingsRow"
-            android:layout_marginTop="18dp" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="7dp"
-            android:text="@string/continue_watching_help"
-            android:textColor="#FFACB8C1"
-            android:textSize="14sp" />
-
-        <TextView
-            android:id="@+id/continueWatchingAppsChoice"
-            style="@style/SettingsRow"
-            android:layout_marginTop="18dp"
-            android:text="@string/continue_watching_apps" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="7dp"
-            android:text="@string/continue_watching_apps_help"
-            android:textColor="#FFACB8C1"
+            android:textColor="#B3FFFFFF"
             android:textSize="14sp" />
 
         <TextView
@@ -208,7 +212,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="7dp"
             android:text="@string/home_settings_help"
-            android:textColor="#FFACB8C1"
+            android:textColor="#B3FFFFFF"
             android:textSize="14sp" />
 
         <TextView

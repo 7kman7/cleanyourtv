@@ -157,10 +157,16 @@
     <string name="airplay" translatable="false">AirPlay &amp; HomeKit</string>
     <string name="module_cards_state" translatable="false">Module cards: %1$s</string>
     <string name="module_cards_help" translatable="false">Enables rich dynamic preview cards from supported TV apps</string>
-    <string name="continue_watching_title" translatable="false">Continue Watching</string>
-    <string name="continue_watching_state" translatable="false">Continue watching: %1$s</string>
-    <string name="continue_watching_help" translatable="false">Display a Continue Watching row for supported apps on the home screen</string>
-    <string name="continue_watching_apps" translatable="false">Continue watching apps</string>
-    <string name="continue_watching_apps_help" translatable="false">Select which installed apps appear in the Continue Watching row</string>
-    <string name="continue_watching_empty" translatable="false">No recent content to resume</string>
+    <string name="theme_state" translatable="false">Theme: %1$s</string>
+    <string name="theme_help" translatable="false">Select visual style, background colors, and accent effects</string>
+    <string name="theme_title" translatable="false">Choose Theme</string>
+    <string name="theme_default" translatable="false">Midnight (Default)</string>
+    <string name="theme_oled" translatable="false">OLED Pure Black</string>
+    <string name="theme_glass" translatable="false">Frosted Glass (tvOS)</string>
+    <string name="theme_aurora" translatable="false">Aurora Cosmic</string>
+    <string name="theme_cyberpunk" translatable="false">Cyberpunk Violet</string>
+    <string name="theme_forest" translatable="false">Emerald Forest</string>
+    <string name="theme_sunset" translatable="false">Sunset Ember</string>
+    <string name="recent_apps_dock_state" translatable="false">Recent apps dock: %1$s</string>
+    <string name="recent_apps_dock_help" translatable="false">Show your recently opened apps in the dock row at the top of Home</string>
 </resources>

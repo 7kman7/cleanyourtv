@@ -582,6 +582,7 @@ and a wallpaper.
   - **Apps per row** 4, 5, 6 or 7; **Rows below dock** 0 to 3, how many rows of tiles stay visible under the
     dock band; **Dock band opacity** 100%, 70%, 50% or 30%. The last two only do anything while the dock is
     its own row (`dock_row`, on by default).
+  - **Theme** chooses between visual styles: Midnight (Default), OLED Pure Black, Frosted Glass (tvOS), Aurora Cosmic, Cyberpunk Violet, Emerald Forest, and Sunset Ember.
   - **Wallpaper**: one picture from the theme's collection (or its `wallpaper.jpg`), **None**, or **Theme
     default**. A pick holds that picture and stops the rotation until you choose Theme default, press
     Follow theme, or push the theme again.
@@ -591,11 +592,10 @@ and a wallpaper.
     time Home comes up after the TV starts. Once per boot, so Home and Back still reach the launcher.
   - **Follow theme (reset on-TV choices)**, which clears every choice above. Pushing or resetting a theme
     clears them too.
+  - **Recent apps dock** shows your recently used apps in the dock row at the top of Home, with all other apps below.
   - **Override current launcher** intercepts the stock launcher with zero flicker.
   - **Run at startup** ensures CleanYourTV opens at boot.
   - **Module cards** enables rich dynamic cards from supported apps.
-  - **Continue watching** enables the Continue Watching shelf on the home screen.
-  - **Continue watching apps** selects which apps appear in the Continue Watching row.
   - **Choose default home** opens Android's home picker, and **TV system settings** the TV's own settings
     page.
 - **Change the default home:** Launcher settings and the optional Default-home tile

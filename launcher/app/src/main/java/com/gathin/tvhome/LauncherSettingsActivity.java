@@ -17,9 +17,7 @@ import android.widget.Toast;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 /** Remote-friendly settings owned by the launcher; system settings stay one row away. */
 public final class LauncherSettingsActivity extends Activity {
@@ -29,16 +27,16 @@ public final class LauncherSettingsActivity extends Activity {
     private final TextView[] rowChoices = new TextView[4];
     private static final int[] DOCK_OPACITIES = {100, 70, 50, 30};
     private final TextView[] dockChoices = new TextView[DOCK_OPACITIES.length];
+    private TextView themeChoice;
     private TextView wallpaperChoice;
     private TextView animationsChoice;
     private TextView advancedChoice;
     private TextView followThemeChoice;
     private TextView openOnStartChoice;
+    private TextView recentAppsDockChoice;
     private TextView overrideLauncherChoice;
     private TextView startAtBootChoice;
     private TextView moduleCardsChoice;
-    private TextView continueWatchingChoice;
-    private TextView continueWatchingAppsChoice;
     private int columns;
     private int rowsBelowDock;
     private int dockOpacity;
@@ -47,7 +45,18 @@ public final class LauncherSettingsActivity extends Activity {
     private boolean overrideLauncher;
     private boolean startAtBoot;
     private boolean moduleCards;
-    private boolean continueWatching;
+    private boolean recentAppsDock;
+    private String chosenTheme;
+
+    private static final String[] THEME_KEYS = {
+            Config.THEME_DEFAULT,
+            Config.THEME_OLED,
+            Config.THEME_GLASS,
+            Config.THEME_AURORA,
+            Config.THEME_CYBERPUNK,
+            Config.THEME_FOREST,
+            Config.THEME_SUNSET
+    };
 
     @Override
     protected void onCreate(Bundle state) {
@@ -55,6 +64,10 @@ public final class LauncherSettingsActivity extends Activity {
         setContentView(R.layout.activity_launcher_settings);
         choices = getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE);
         Config config = Config.load(this);
+
+        View root = findViewById(R.id.settingsRoot);
+        if (root != null) root.setBackgroundColor(config.backgroundColor);
+
         View reorderChoice = findViewById(R.id.reorderChoice);
         reorderChoice.setVisibility(config.launcherSettingsButton ? View.VISIBLE : View.GONE);
         reorderChoice.setOnClickListener(v -> {
@@ -66,6 +79,8 @@ public final class LauncherSettingsActivity extends Activity {
         dockOpacity = config.dockOpacity;
         animations = config.animations;
         advancedEffects = config.animations && config.advancedEffects;
+        chosenTheme = config.chosenTheme;
+        recentAppsDock = config.recentAppsDock;
 
         int[] ids = {R.id.columns4, R.id.columns5, R.id.columns6, R.id.columns7};
         for (int i = 0; i < ids.length; i++) {
@@ -110,6 +125,10 @@ public final class LauncherSettingsActivity extends Activity {
             reverseRow(rowChoices);
             reverseRow(dockChoices);
         }
+
+        themeChoice = findViewById(R.id.themeChoice);
+        themeChoice.setOnClickListener(v -> showThemePicker());
+
         wallpaperChoice = findViewById(R.id.wallpaperChoice);
         wallpaperChoice.setOnClickListener(v -> showWallpaperPicker());
         animationsChoice = findViewById(R.id.animationsChoice);
@@ -139,6 +158,16 @@ public final class LauncherSettingsActivity extends Activity {
             openOnStartChoice.setVisibility(View.VISIBLE);
             openOnStartChoice.setOnClickListener(v -> showOpenOnStartPicker());
         }
+
+        recentAppsDock = choices.getBoolean(Config.RECENT_APPS_DOCK_KEY, true);
+        recentAppsDockChoice = findViewById(R.id.recentAppsDockChoice);
+        recentAppsDockChoice.setOnClickListener(v -> {
+            recentAppsDock = !recentAppsDock;
+            choices.edit().putBoolean(Config.RECENT_APPS_DOCK_KEY, recentAppsDock).apply();
+            changed();
+            refresh();
+        });
+
         overrideLauncher = choices.getBoolean("override_launcher", true);
         startAtBoot = choices.getBoolean("start_at_boot", true);
         overrideLauncherChoice = findViewById(R.id.overrideLauncherChoice);
@@ -163,16 +192,6 @@ public final class LauncherSettingsActivity extends Activity {
             changed();
             refresh();
         });
-        continueWatching = choices.getBoolean("continue_watching", false);
-        continueWatchingChoice = findViewById(R.id.continueWatchingChoice);
-        continueWatchingChoice.setOnClickListener(v -> {
-            continueWatching = !continueWatching;
-            choices.edit().putBoolean("continue_watching", continueWatching).apply();
-            changed();
-            refresh();
-        });
-        continueWatchingAppsChoice = findViewById(R.id.continueWatchingAppsChoice);
-        continueWatchingAppsChoice.setOnClickListener(v -> showContinueWatchingAppsPicker());
         followThemeChoice = findViewById(R.id.followThemeChoice);
         followThemeChoice.setOnClickListener(v -> {
             if (!hasOnTvChoices()) return;
@@ -180,13 +199,17 @@ public final class LauncherSettingsActivity extends Activity {
                     .remove("advanced_effects").remove(Config.WALLPAPER_CHOICE_KEY)
                     .remove(Config.DOCK_OPACITY_KEY).remove(OpenOnStart.KEY)
                     .remove("override_launcher").remove("start_at_boot").remove("module_cards")
-                    .remove("continue_watching").remove("continue_watching_packages").commit();
+                    .remove(Config.RECENT_APPS_DOCK_KEY).remove(Config.THEME_KEY).commit();
             Config current = Config.load(this);
             columns = current.columns;
             rowsBelowDock = current.rowsBelowDock;
             dockOpacity = current.dockOpacity;
             animations = current.animations;
             advancedEffects = current.animations && current.advancedEffects;
+            chosenTheme = current.chosenTheme;
+            recentAppsDock = current.recentAppsDock;
+            View r = findViewById(R.id.settingsRoot);
+            if (r != null) r.setBackgroundColor(current.backgroundColor);
             changed();
             refresh();
         });
@@ -208,49 +231,37 @@ public final class LauncherSettingsActivity extends Activity {
                 }
             }
         });
-        findViewById(R.id.tvSettingsChoice).setOnClickListener(v -> {
-            open(SystemSettings.intent(this, Settings.ACTION_SETTINGS));
-        });
+        findViewById(R.id.tvSettingsChoice).setOnClickListener(v ->
+                open(SystemSettings.intent(this, Settings.ACTION_SETTINGS)));
         refresh();
-        if (config.launcherSettingsButton) reorderChoice.requestFocus();
-        else columnChoices[Math.max(0, Math.min(columns - 4, 3))].requestFocus();
     }
 
-    private void reverseRow(TextView[] views) {
-        LinearLayout row = (LinearLayout) views[0].getParent();
-        row.removeAllViews();
-        for (int i = views.length - 1; i >= 0; i--) row.addView(views[i]);
+    private String themeDisplayName(String key) {
+        if (Config.THEME_OLED.equals(key)) return getString(R.string.theme_oled);
+        if (Config.THEME_GLASS.equals(key)) return getString(R.string.theme_glass);
+        if (Config.THEME_AURORA.equals(key)) return getString(R.string.theme_aurora);
+        if (Config.THEME_CYBERPUNK.equals(key)) return getString(R.string.theme_cyberpunk);
+        if (Config.THEME_FOREST.equals(key)) return getString(R.string.theme_forest);
+        if (Config.THEME_SUNSET.equals(key)) return getString(R.string.theme_sunset);
+        return getString(R.string.theme_default);
     }
 
-    private void showWallpaperPicker() {
-        File dir = Config.dir(this);
-        List<File> images = new java.util.ArrayList<>(WallpaperRotation.images(
-                dir == null ? null : new File(dir, "wallpapers")));
-        // A theme with a single wallpaper.jpg offers that picture too (Config maps the choice back to it).
-        File single = dir == null ? null : new File(dir, Config.WALLPAPER_NAME);
-        if (single != null && single.isFile()) images.add(0, single);
-        String[] labels = new String[images.size() + 1];
-        for (int i = 0; i < images.size(); i++) labels[i] = images.get(i).getName();
-        labels[images.size()] = getString(R.string.wallpaper_none);
-        String current = choices.getString(Config.WALLPAPER_CHOICE_KEY, null);
-        int checked = "none".equals(current) ? images.size()
-                : indexOf(images, current);
+    private void showThemePicker() {
+        String[] displayNames = new String[THEME_KEYS.length];
+        int checked = 0;
+        for (int i = 0; i < THEME_KEYS.length; i++) {
+            displayNames[i] = themeDisplayName(THEME_KEYS[i]);
+            if (THEME_KEYS[i].equals(chosenTheme)) checked = i;
+        }
         new AlertDialog.Builder(this)
-                .setTitle(R.string.wallpaper_label)
-                .setSingleChoiceItems(labels, checked, (dialog, which) -> {
+                .setTitle(R.string.theme_title)
+                .setSingleChoiceItems(displayNames, checked, (dialog, which) -> {
                     dialog.dismiss();
-                    if (which == images.size()) {
-                        choices.edit().putString(Config.WALLPAPER_CHOICE_KEY, "none").apply();
-                    } else {
-                        choices.edit().putString(Config.WALLPAPER_CHOICE_KEY,
-                                images.get(which).getName()).apply();
-                    }
-                    changed();
-                    Toast.makeText(this, R.string.wallpaper_applied, Toast.LENGTH_SHORT).show();
-                    refresh();
-                })
-                .setNeutralButton(R.string.wallpaper_theme_default, (dialog, which) -> {
-                    choices.edit().remove(Config.WALLPAPER_CHOICE_KEY).apply();
+                    chosenTheme = THEME_KEYS[which];
+                    choices.edit().putString(Config.THEME_KEY, chosenTheme).apply();
+                    Config cfg = Config.load(this);
+                    View root = findViewById(R.id.settingsRoot);
+                    if (root != null) root.setBackgroundColor(cfg.backgroundColor);
                     changed();
                     refresh();
                 })
@@ -258,12 +269,46 @@ public final class LauncherSettingsActivity extends Activity {
                 .show();
     }
 
-    /** Off, then every app with a TV entry point by name. Saved at once; it is read on the next boot. */
+    private static void reverseRow(TextView[] views) {
+        LinearLayout row = (LinearLayout) views[0].getParent();
+        for (TextView v : views) row.removeView(v);
+        for (int i = views.length - 1; i >= 0; i--) row.addView(views[i]);
+    }
+
+    private void showWallpaperPicker() {
+        File dir = Config.dir(this);
+        List<File> images = WallpaperRotation.images(dir != null ? new File(dir, "wallpapers") : null);
+        File single = dir != null ? new File(dir, Config.WALLPAPER_NAME) : null;
+        if (single != null && single.isFile() && single.length() > 0 && !images.contains(single)) {
+            images = new ArrayList<>(images);
+            images.add(0, single);
+        }
+        String[] labels = new String[images.size() + 2];
+        labels[0] = getString(R.string.wallpaper_theme_default);
+        labels[1] = getString(R.string.wallpaper_none);
+        for (int i = 0; i < images.size(); i++) labels[i + 2] = images.get(i).getName();
+        String current = choices.getString(Config.WALLPAPER_CHOICE_KEY, null);
+        int checked = current == null ? 0 : "none".equals(current) ? 1 : indexOf(images, current) + 2;
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.wallpaper_label)
+                .setSingleChoiceItems(labels, checked, (dialog, which) -> {
+                    dialog.dismiss();
+                    if (which == 0) choices.edit().remove(Config.WALLPAPER_CHOICE_KEY).apply();
+                    else if (which == 1) choices.edit().putString(Config.WALLPAPER_CHOICE_KEY, "none").apply();
+                    else choices.edit().putString(Config.WALLPAPER_CHOICE_KEY, images.get(which - 2).getName()).apply();
+                    changed();
+                    refresh();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
     private void showOpenOnStartPicker() {
         PackageManager pm = getPackageManager();
         List<String[]> apps = new ArrayList<>();
         Intent tv = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER);
         for (ResolveInfo r : pm.queryIntentActivities(tv, 0)) {
+            if (r.activityInfo == null) continue;
             String pkg = r.activityInfo.packageName;
             if (pkg.equals(getPackageName())) continue;
             boolean seen = false;
@@ -288,43 +333,6 @@ public final class LauncherSettingsActivity extends Activity {
                         OpenOnStart.skipThisBoot(this);
                         choices.edit().putString(OpenOnStart.KEY, apps.get(which - 1)[1]).apply();
                     }
-                    refresh();
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
-    }
-
-    private void showContinueWatchingAppsPicker() {
-        PackageManager pm = getPackageManager();
-        List<String[]> apps = new ArrayList<>();
-        Intent tv = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER);
-        for (ResolveInfo r : pm.queryIntentActivities(tv, 0)) {
-            if (r.activityInfo == null) continue;
-            String pkg = r.activityInfo.packageName;
-            if (pkg.equals(getPackageName())) continue;
-            boolean seen = false;
-            for (String[] a : apps) seen |= a[1].equals(pkg);
-            if (!seen) apps.add(new String[]{r.loadLabel(pm).toString(), pkg});
-        }
-        Collections.sort(apps, (a, b) -> a[0].compareToIgnoreCase(b[0]));
-        String[] labels = new String[apps.size()];
-        boolean[] checked = new boolean[apps.size()];
-        Set<String> selected = choices.getStringSet("continue_watching_packages", Collections.emptySet());
-        Set<String> updated = new HashSet<>(selected);
-        for (int i = 0; i < apps.size(); i++) {
-            labels[i] = apps.get(i)[0];
-            checked[i] = selected.contains(apps.get(i)[1]);
-        }
-        new AlertDialog.Builder(this)
-                .setTitle(R.string.continue_watching_apps)
-                .setMultiChoiceItems(labels, checked, (dialog, which, isChecked) -> {
-                    String pkg = apps.get(which)[1];
-                    if (isChecked) updated.add(pkg);
-                    else updated.remove(pkg);
-                })
-                .setPositiveButton(android.R.string.ok, (dialog, which) -> {
-                    choices.edit().putStringSet("continue_watching_packages", updated).apply();
-                    changed();
                     refresh();
                 })
                 .setNegativeButton(android.R.string.cancel, null)
@@ -378,6 +386,7 @@ public final class LauncherSettingsActivity extends Activity {
         for (int i = 0; i < dockChoices.length; i++) {
             dockChoices[i].setSelected(dockOpacity == DOCK_OPACITIES[i]);
         }
+        themeChoice.setText(getString(R.string.theme_state, themeDisplayName(chosenTheme)));
         animationsChoice.setText(getString(R.string.animations_state,
                 getString(animations ? R.string.on : R.string.off)));
         advancedChoice.setText(getString(R.string.advanced_effects_state,
@@ -390,14 +399,14 @@ public final class LauncherSettingsActivity extends Activity {
                         : wallpaperCurrent != null ? wallpaperCurrent
                         : getString(R.string.wallpaper_theme_default)));
         openOnStartChoice.setText(getString(R.string.open_on_start_state, openOnStartLabel()));
+        recentAppsDockChoice.setText(getString(R.string.recent_apps_dock_state,
+                getString(recentAppsDock ? R.string.on : R.string.off)));
         overrideLauncherChoice.setText(getString(R.string.override_launcher_state,
                 getString(overrideLauncher ? R.string.on : R.string.off)));
         startAtBootChoice.setText(getString(R.string.run_at_startup_state,
                 getString(startAtBoot ? R.string.on : R.string.off)));
         moduleCardsChoice.setText(getString(R.string.module_cards_state,
                 getString(moduleCards ? R.string.on : R.string.off)));
-        continueWatchingChoice.setText(getString(R.string.continue_watching_state,
-                getString(continueWatching ? R.string.on : R.string.off)));
         followThemeChoice.setSelected(!hasOnTvChoices());
     }
 
@@ -407,7 +416,7 @@ public final class LauncherSettingsActivity extends Activity {
                 || choices.contains(Config.WALLPAPER_CHOICE_KEY) || choices.contains(Config.DOCK_OPACITY_KEY)
                 || choices.contains(OpenOnStart.KEY) || choices.contains("override_launcher")
                 || choices.contains("start_at_boot") || choices.contains("module_cards")
-                || choices.contains("continue_watching") || choices.contains("continue_watching_packages");
+                || choices.contains(Config.RECENT_APPS_DOCK_KEY) || choices.contains(Config.THEME_KEY);
     }
 
     private void open(Intent intent) {

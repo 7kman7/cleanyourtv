@@ -234,12 +234,15 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private final Map<String, String> appLabels, appBanners;
     /** Every app tile is its icon on a card tinted from that icon, never its banner (config.xml, uniform_tiles). */
     private final boolean uniformTiles;
+    private final boolean recentAppsDock;
+    private final Set<String> dockedPackages = new HashSet<>();
     private final List<Entry> items = new ArrayList<>();
 
     AppAdapter(Context ctx, TileListener listener, int dockSize, Config cfg) {
         this.ctx = ctx;
         this.listener = listener;
         this.dockSize = dockSize;
+        this.recentAppsDock = cfg.recentAppsDock;
         this.favourites = cfg.dockApps;
         this.fillDock = cfg.fillDock;
         this.hidden = new HashSet<>(cfg.hiddenApps);
@@ -385,6 +388,47 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 fresh.add(new Entry(Entry.AIRPLAY, "AirPlay",
                         new ComponentName(ctx.getPackageName(), "com.gathin.tvhome.AirPlay"),
                         null, airplayIcon, null, 0));
+            }
+        }
+        if (recentAppsDock && dockRow) {
+            List<Entry> dockCandidates = new ArrayList<>();
+            Entry homeSettingsEntry = null;
+            for (Entry e : fresh) {
+                if (e.kind == Entry.HOME_SETTINGS) {
+                    homeSettingsEntry = e;
+                } else {
+                    dockCandidates.add(e);
+                }
+            }
+            Collections.sort(dockCandidates, (a, b) -> {
+                long la = LastOpened.get(ctx, a.pkg);
+                long lb = LastOpened.get(ctx, b.pkg);
+                if (la > 0 || lb > 0) {
+                    return Long.compare(lb, la);
+                }
+                int saved = Order.compare(savedRanks, a.component.flattenToShortString(), b.component.flattenToShortString());
+                if (saved != 0) return saved;
+                int fa = favourites.indexOf(a.pkg), fb = favourites.indexOf(b.pkg);
+                if (fa >= 0 || fb >= 0) {
+                    if (fa < 0) return 1;
+                    if (fb < 0) return -1;
+                    return Integer.compare(fa, fb);
+                }
+                return a.label.compareToIgnoreCase(b.label);
+            });
+            int dockCount = Math.min(dockSize, dockCandidates.size());
+            List<Entry> dockedEntries = new ArrayList<>(dockCandidates.subList(0, dockCount));
+            List<Entry> remainingEntries = new ArrayList<>(dockCandidates.subList(dockCount, dockCandidates.size()));
+            dockedPackages.clear();
+            for (Entry e : dockedEntries) {
+                if (e.pkg != null) dockedPackages.add(e.pkg);
+            }
+            Collections.sort(remainingEntries, (a, b) -> a.label.compareToIgnoreCase(b.label));
+            fresh.clear();
+            fresh.addAll(dockedEntries);
+            fresh.addAll(remainingEntries);
+            if (homeSettingsEntry != null) {
+                fresh.add(homeSettingsEntry);
             }
         }
         docked = 0;
@@ -604,7 +648,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         }
         try {
             ctx.startActivity(i);
-            if (cinematic) LastOpened.record(ctx, e.pkg);
+            LastOpened.record(ctx, e.pkg);
             if (advancedEffects && !reducedMotion && ctx instanceof Activity) {
                 ((Activity) ctx).overridePendingTransition(R.anim.app_open_enter, R.anim.app_open_exit);
             }
@@ -645,6 +689,9 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
      * the owner moved into the dock stays there (#499); else a dock_apps entry.
      */
     private boolean isDocked(Entry e) {
+        if (recentAppsDock && dockRow) {
+            return e.pkg != null && dockedPackages.contains(e.pkg);
+        }
         if (savedDocked < 0) return favourites.contains(e.pkg);
         Integer rank = savedRanks.get(e.component.flattenToShortString());
         return rank != null && rank < savedDocked;

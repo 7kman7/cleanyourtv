@@ -387,36 +387,6 @@
             </LinearLayout>
         </RelativeLayout>
 
-        <LinearLayout
-            android:id="@+id/continueWatchingSection"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:layout_marginTop="6dp"
-            android:layout_marginBottom="2dp"
-            android:visibility="gone">
-
-            <TextView
-                android:id="@+id/continueWatchingTitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/continue_watching_title"
-                android:textColor="#CCFFFFFF"
-                android:textSize="15sp"
-                android:fontFamily="@string/font_medium"
-                android:layout_marginStart="10dp"
-                android:layout_marginBottom="4dp" />
-
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/continueWatchingRow"
-                android:layout_width="match_parent"
-                android:layout_height="102dp"
-                android:clipToPadding="false"
-                android:clipChildren="false"
-                android:overScrollMode="never"
-                android:scrollbars="none" />
-        </LinearLayout>
-
         <!-- The wrapper clips at the grid's edge; the grid itself must not clip so scaled tiles can overflow their cells. -->
         <FrameLayout
             android:layout_width="match_parent"

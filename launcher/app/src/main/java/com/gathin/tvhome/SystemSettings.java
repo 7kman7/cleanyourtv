@@ -137,33 +137,57 @@ final class SystemSettings {
     }
 
     /**
-     * Warm-starts PhairPlay on launcher startup so its receiver service is listening for connections,
-     * immediately returning focus to CleanYourTV with zero animation.
+     * Ensures Fire TV native Apple AirPlay receiver and Amazon Cast sink are awake and running
+     * in the background so Apple devices can discover the TV over mDNS/Bonjour immediately.
      */
-    static void warmPhairPlay(android.app.Activity activity) {
-        if (phairPlayWarmed) return;
-        Intent phairplay = phairPlayIntent(activity);
-        if (phairplay == null) return;
-        phairPlayWarmed = true;
-        try {
-            Intent launch = new Intent(phairplay)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION);
-            activity.startActivity(launch);
-            activity.getWindow().getDecorView().postDelayed(() -> {
-                try {
-                    Intent home = new Intent(activity, MainActivity.class)
-                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_NO_ANIMATION);
-                    activity.startActivity(home);
-                } catch (Exception ignored) {
+    static void ensureNativeAirPlayRunning(Context context) {
+        PackageManager pm = context.getPackageManager();
+        String[] airplayPackages = {
+                "com.apple.airplay.amazon.airplay",
+                "com.amazon.cast.sink"
+        };
+        for (String pkg : airplayPackages) {
+            try {
+                android.content.pm.PackageInfo pi = pm.getPackageInfo(pkg, PackageManager.GET_SERVICES);
+                if (pi.services != null) {
+                    for (android.content.pm.ServiceInfo si : pi.services) {
+                        if (si.name != null) {
+                            try {
+                                Intent svc = new Intent().setComponent(new ComponentName(pkg, si.name));
+                                context.startService(svc);
+                            } catch (Exception ignored) {
+                            }
+                        }
+                    }
                 }
-            }, 350);
+            } catch (Exception ignored) {
+            }
+        }
+        // Wake Apple AirPlay mDNS daemon and Amazon Cast sink
+        try {
+            context.sendBroadcast(new Intent("com.amazon.device.settings.ACTION_SETTINGS_CHANGED")
+                    .setPackage("com.apple.airplay.amazon.airplay"));
         } catch (Exception ignored) {
         }
+        try {
+            context.sendBroadcast(new Intent("com.apple.airplay.amazon.airplay.START")
+                    .setPackage("com.apple.airplay.amazon.airplay"));
+        } catch (Exception ignored) {
+        }
+        try {
+            context.sendBroadcast(new Intent("com.amazon.cast.sink.START")
+                    .setPackage("com.amazon.cast.sink"));
+        } catch (Exception ignored) {
+        }
+        // Secondary fallback
+        ensureAirPlayRunning(context);
     }
 
-    /** Checks whether an AirPlay receiver or casting service is installed / available on the TV. */
+    /**
+     * Checks whether native Fire TV AirPlay, Amazon Cast Sink, or a secondary AirPlay receiver
+     * is available on the TV.
+     */
     static boolean isAirPlayAvailable(Context context) {
-        if (phairPlayIntent(context) != null) return true;
         PackageManager pm = context.getPackageManager();
         try {
             pm.getPackageInfo("com.apple.airplay.amazon.airplay", 0);
@@ -175,31 +199,27 @@ final class SystemSettings {
             return true;
         } catch (PackageManager.NameNotFoundException ignored) {
         }
+        if (phairPlayIntent(context) != null) return true;
         Intent cast = new Intent("android.settings.CAST_SETTINGS");
         return pm.resolveActivity(cast, PackageManager.MATCH_DEFAULT_ONLY) != null;
     }
 
-    /** Opens AirPlay configuration or the AirPlay receiver. */
+    /** Opens native Fire TV AirPlay configuration or the AirPlay receiver. */
     static Intent airPlayIntent(Context context) {
         PackageManager pm = context.getPackageManager();
 
-        Intent phairplay = phairPlayIntent(context);
-        if (phairplay != null) return phairplay;
-
-        Intent appleLaunch = pm.getLaunchIntentForPackage("com.apple.airplay.amazon.airplay");
-        if (appleLaunch != null) return appleLaunch;
-
-        Intent castSink = pm.getLaunchIntentForPackage("com.amazon.cast.sink");
-        if (castSink != null) return castSink;
-
-        String[] airPlayComponents = {
-                "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.display.DisplayActivity",
-                "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.MainActivity",
-                "com.amazon.tv.launcher/com.amazon.tv.launcher.ui.AirPlaySettingsActivity",
+        // 1. Native Fire TV Apple AirPlay activities
+        String[] nativeAirPlayActivities = {
+                "com.apple.airplay.amazon.airplay/com.apple.airplay.amazon.airplay.MainActivity",
+                "com.apple.airplay.amazon.airplay/com.apple.airplay.amazon.airplay.ui.AirPlaySettingsActivity",
                 "com.apple.airplay.amazon.airplay/com.apple.airplay.amazon.airplay.AirPlayActivity",
+                "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.tv.display.AirPlayActivity",
+                "com.amazon.tv.settings/com.amazon.tv.settings.tv.display.AirPlayActivity",
+                "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.display.AirPlayActivity",
+                "com.amazon.tv.launcher/com.amazon.tv.launcher.ui.AirPlaySettingsActivity",
                 "com.amazon.cast.sink/com.amazon.cast.sink.MainActivity"
         };
-        for (String c : airPlayComponents) {
+        for (String c : nativeAirPlayActivities) {
             ComponentName cn = ComponentName.unflattenFromString(c);
             if (cn != null) {
                 Intent testIntent = new Intent().setComponent(cn);
@@ -209,6 +229,33 @@ final class SystemSettings {
             }
         }
 
+        // 2. Package launch intent for native AirPlay or Cast sink
+        Intent appleLaunch = pm.getLaunchIntentForPackage("com.apple.airplay.amazon.airplay");
+        if (appleLaunch != null) return appleLaunch;
+
+        Intent castSink = pm.getLaunchIntentForPackage("com.amazon.cast.sink");
+        if (castSink != null) return castSink;
+
+        // 3. Fire OS Display & Sounds settings (where AirPlay & HomeKit is nested)
+        String[] displayActivities = {
+                "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.display.DisplayActivity",
+                "com.amazon.tv.settings/com.amazon.tv.settings.display.DisplayActivity"
+        };
+        for (String c : displayActivities) {
+            ComponentName cn = ComponentName.unflattenFromString(c);
+            if (cn != null) {
+                Intent testIntent = new Intent().setComponent(cn);
+                if (pm.resolveActivity(testIntent, PackageManager.MATCH_DEFAULT_ONLY) != null) {
+                    return testIntent;
+                }
+            }
+        }
+
+        // 4. Secondary fallback: PhairPlay if installed
+        Intent phairplay = phairPlayIntent(context);
+        if (phairplay != null) return phairplay;
+
+        // 5. System Cast or Display settings
         Intent castSettings = new Intent("android.settings.CAST_SETTINGS");
         if (pm.resolveActivity(castSettings, PackageManager.MATCH_DEFAULT_ONLY) != null) {
             return castSettings;
