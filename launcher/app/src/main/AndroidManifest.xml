@@ -86,12 +86,24 @@
         <package android:name="com.phairplay" />
         <package android:name="com.amazon.tv.inputpreference.service" />
         <package android:name="com.amazon.tv.inputpreference" />
-        <package android:name="com.amazon.tv.devicecontrol" />
-        <package android:name="com.amazon.tv.devicecontrolsettings" />
         <package android:name="com.amazon.tv.settings" />
         <package android:name="com.android.tv.settings" />
+        <package android:name="com.google.android.tvlauncher" />
         <package android:name="com.google.android.tv.frameworkpackagestubs" />
+        <package android:name="com.mediatek.wwtv.tvcenter" />
         <package android:name="com.sony.dtv.settings" />
+        <package android:name="com.sony.dtv.tvinput.sources" />
+        <package android:name="com.sony.dtv.tvinput.externalinput" />
+        <package android:name="com.sony.dtv.tvx" />
+        <package android:name="com.tcl.settings" />
+        <package android:name="com.tcl.suspension" />
+        <package android:name="com.tcl.sourcemanager" />
+        <package android:name="com.hisense.tv.inputs" />
+        <package android:name="com.hisense.tv.settings" />
+        <package android:name="org.droidtv.settings" />
+        <package android:name="com.xiaomi.mitv.settings" />
+        <package android:name="com.xiaomi.mitv.source" />
+        <package android:name="com.xiaomi.mitv.tvplayer" />
         <intent>
             <action android:name="android.media.tv.action.VIEW_INPUTS" />
         </intent>
@@ -105,13 +117,16 @@
             <action android:name="android.settings.INPUT_SETTINGS" />
         </intent>
         <intent>
-            <action android:name="amazon.intent.action.INPUTS_SETTINGS" />
-        </intent>
-        <intent>
             <action android:name="com.amazon.tv.settings.INPUTS_SETTINGS" />
         </intent>
         <intent>
+            <action android:name="com.amazon.tv.settings.action.INPUTS" />
+        </intent>
+        <intent>
             <action android:name="com.android.tv.settings.action.INPUTS" />
+        </intent>
+        <intent>
+            <action android:name="com.android.tv.settings.action.SYSTEM_INPUTS" />
         </intent>
         <intent>
             <action android:name="android.intent.action.VIEW" />

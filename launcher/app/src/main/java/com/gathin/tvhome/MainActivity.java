@@ -2964,7 +2964,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         // Fire TV specific input intents
         String[] amazonInputIntents = {
                 "com.amazon.tv.action.SWITCH_INPUT",
-                "amazon.intent.action.INPUTS_SETTINGS"
+                "com.amazon.tv.action.INPUT_CHOOSER"
         };
         for (String act : amazonInputIntents) {
             try {
@@ -2973,6 +2973,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 if (receivers != null) {
                     for (ResolveInfo ri : receivers) {
                         if (ri.activityInfo != null && !getPackageName().equals(ri.activityInfo.packageName)) {
+                            String pkgLower = ri.activityInfo.packageName.toLowerCase(Locale.ROOT);
+                            String clsLower = ri.activityInfo.name.toLowerCase(Locale.ROOT);
+                            if (pkgLower.contains("equipment") || pkgLower.contains("devicecontrol")
+                                    || clsLower.contains("equipment") || clsLower.contains("devicecontrol")
+                                    || clsLower.contains("ozoobe")) {
+                                continue;
+                            }
                             actIntent.setComponent(new ComponentName(ri.activityInfo.packageName, ri.activityInfo.name));
                             startActivity(actIntent);
                             return;
@@ -3160,7 +3167,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private boolean openNativeInputs() {
         HomeKeyService.allowStockLauncherUntil = SystemClock.uptimeMillis() + 60000;
 
-        // 1. Direct priority: Target the Inputs section of native settings
+        // 1. Direct priority: Target the Inputs section of native settings / side popout menu
         if (SystemSettings.launchInputsSettings(this)) {
             return true;
         }
@@ -3176,7 +3183,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             return true;
         }
 
-        // 4. Asynchronous key injection (KEYCODE_TV_INPUT = 178) in background thread (never blocking UI thread!)
+        // 4. Asynchronous key injection and shell activity launch in background thread (never blocking UI thread!)
         new Thread(() -> {
             try {
                 Runtime.getRuntime().exec(new String[]{"input", "keyevent", "178"});
@@ -3184,6 +3191,34 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             }
             try {
                 Runtime.getRuntime().exec(new String[]{"su", "-c", "input keyevent 178"});
+            } catch (Throwable ignored) {
+            }
+            try {
+                Runtime.getRuntime().exec(new String[]{"su", "-c", "am start -n com.amazon.tv.inputpreference/com.amazon.tv.inputpreference.inputtab.InputTabActivity"});
+            } catch (Throwable ignored) {
+            }
+            try {
+                Runtime.getRuntime().exec(new String[]{"su", "-c", "am start -n com.amazon.tv.inputpreference.service/com.amazon.tv.inputpreference.inputtab.InputTabActivity"});
+            } catch (Throwable ignored) {
+            }
+            try {
+                Runtime.getRuntime().exec(new String[]{"su", "-c", "am start -n com.amazon.tv.inputpreference/com.amazon.tv.inputpreference.player.InputChooserActivity"});
+            } catch (Throwable ignored) {
+            }
+            try {
+                Runtime.getRuntime().exec(new String[]{"su", "-c", "am start -n com.amazon.tv.inputpreference.service/com.amazon.tv.inputpreference.player.InputChooserActivity"});
+            } catch (Throwable ignored) {
+            }
+            try {
+                Runtime.getRuntime().exec(new String[]{"su", "-c", "am start -n com.amazon.tv.launcher/com.amazon.tv.launcher.inputs.InputsActivity"});
+            } catch (Throwable ignored) {
+            }
+            try {
+                Runtime.getRuntime().exec(new String[]{"su", "-c", "am start -n com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.inputs.InputsActivity"});
+            } catch (Throwable ignored) {
+            }
+            try {
+                Runtime.getRuntime().exec(new String[]{"su", "-c", "am start -n com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.tv.inputs.InputsActivity"});
             } catch (Throwable ignored) {
             }
         }).start();
