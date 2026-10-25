@@ -860,25 +860,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private boolean openInputsIfAsked(Intent intent) {
         if (intent == null || !ACTION_VIEW_INPUTS.equals(intent.getAction())) return false;
         setIntent(new Intent(Intent.ACTION_MAIN));
-        View anchor = topMenu ? findViewById(R.id.btnSettings) : btnInputs;
-        if (anchor.getVisibility() != View.VISIBLE) return true;
-        if (anchor.isLaidOut()) {
-            anchor.requestFocus();
-            showInputs();
-            return true;
-        }
-        // Cold start: the popup anchors to the pill (or the gear), so wait for the first layout.
-        anchor.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
-            @Override
-            public void onGlobalLayout() {
-                anchor.getViewTreeObserver().removeOnGlobalLayoutListener(this);
-                anchor.post(() -> {
-                    if (isFinishing() || anchor.getVisibility() != View.VISIBLE) return;
-                    anchor.requestFocus();
-                    showInputs();
-                });
-            }
-        });
+        root.post(this::showInputs);
         return true;
     }
 
@@ -2757,25 +2739,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         return SystemSettings.intent(this, standardAction);
     }
 
-    /** Hides the Inputs pill when it would have nothing to list: streaming boxes have no HDMI-in, AV or tuner. */
+    /** Updates the Inputs pill: visible when enabled, with fallback rows on Fire TV and smart TVs. */
     private void updateInputsButton() {
         if (!showInputsPill) {
             btnInputs.setVisibility(View.GONE);
             return;
         }
-        boolean any = liveTvIntent() != null || !sourcePanelService.isEmpty()
-                || (coocaaSources && !CoocaaSources.list(this).isEmpty());
-        TvInputManager tim = (TvInputManager) getSystemService(TV_INPUT_SERVICE);
-        if (!any && tim != null) {
-            for (TvInputInfo info : tim.getTvInputList()) {
-                // Inputs hidden in Settings > Inputs are left out of the menu, so they don't count here either.
-                if (info.isPassthroughInput() && !info.isHidden(this)) {
-                    any = true;
-                    break;
-                }
-            }
-        }
-        btnInputs.setVisibility(any ? View.VISIBLE : View.GONE);
+        btnInputs.setVisibility(View.VISIBLE);
     }
 
     /** boot_to_live_tv, or the Open on start app: the first time Home comes up after the TV starts, open that app
@@ -2866,14 +2836,60 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
      *  throws SecurityException, which used to take Home down with it (YaOS before the manifest asked
      *  for ACCESS_TV_SOURCE). */
     private void openInput(String inputId) {
-        HomeKeyService.allowStockLauncherUntil = SystemClock.uptimeMillis() + 8000;
-        // A CEC device is a child input of its HDMI port; the vendor source number belongs to the port
-        // (MiTV-MFFU0). Only that lookup uses the parent: the generic path below still opens the child.
-        String sourceId = inputId;
+        HomeKeyService.allowStockLauncherUntil = SystemClock.uptimeMillis() + 15000;
+
+        // Try keyevent shortcut first if applicable
+        int keyEvent = 0;
+        String lower = inputId.toLowerCase(Locale.ROOT);
+        if (lower.contains("hdmi1") || lower.contains("hdmi 1") || lower.contains("hw1")) keyEvent = 243;
+        else if (lower.contains("hdmi2") || lower.contains("hdmi 2") || lower.contains("hw2")) keyEvent = 244;
+        else if (lower.contains("hdmi3") || lower.contains("hdmi 3") || lower.contains("hw3")) keyEvent = 245;
+        else if (lower.contains("hdmi4") || lower.contains("hdmi 4") || lower.contains("hw4")) keyEvent = 246;
+        else if (lower.contains("av") || lower.contains("composite")) keyEvent = 247;
+        if (keyEvent != 0) {
+            try {
+                Runtime.getRuntime().exec(new String[]{"input", "keyevent", String.valueOf(keyEvent)});
+            } catch (Exception ignored) {
+            }
+        }
+
         TvInputManager tim = (TvInputManager) getSystemService(TV_INPUT_SERVICE);
+        String resolvedId = inputId;
         if (tim != null) {
             try {
-                TvInputInfo info = tim.getTvInputInfo(inputId);
+                for (TvInputInfo info : tim.getTvInputList()) {
+                    String id = info.getId();
+                    String norm = id.toLowerCase(Locale.ROOT);
+                    String target = inputId.toLowerCase(Locale.ROOT);
+                    if (id.equals(inputId) || norm.contains(target)) {
+                        resolvedId = id;
+                        break;
+                    }
+                    if ("hdmi1".equals(target) && (norm.contains("hw1") || norm.contains("hdmi1") || norm.contains("hdmi 1") || norm.contains("hdmi_1"))) {
+                        resolvedId = id;
+                        break;
+                    }
+                    if ("hdmi2".equals(target) && (norm.contains("hw2") || norm.contains("hdmi2") || norm.contains("hdmi 2") || norm.contains("hdmi_2"))) {
+                        resolvedId = id;
+                        break;
+                    }
+                    if ("hdmi3".equals(target) && (norm.contains("hw3") || norm.contains("hdmi3") || norm.contains("hdmi 3") || norm.contains("hdmi_3"))) {
+                        resolvedId = id;
+                        break;
+                    }
+                    if ("av".equals(target) && (norm.contains("av") || norm.contains("composite"))) {
+                        resolvedId = id;
+                        break;
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+        }
+
+        String sourceId = resolvedId;
+        if (tim != null) {
+            try {
+                TvInputInfo info = tim.getTvInputInfo(resolvedId);
                 if (info != null && info.getParentId() != null) sourceId = info.getParentId();
             } catch (RuntimeException ignored) {
             }
@@ -2890,7 +2906,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
         Uri uri = null;
         try {
-            uri = TvContract.buildChannelUriForPassthroughInput(inputId);
+            uri = TvContract.buildChannelUriForPassthroughInput(resolvedId);
         } catch (Exception ignored) {
         }
         if (uri != null) {
@@ -2898,13 +2914,19 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                     ? new Intent(Intent.ACTION_VIEW).setDataAndType(uri, "vnd.android.cursor.item/channel")
                     : new Intent(Intent.ACTION_VIEW, uri.buildUpon().scheme(inputUriScheme).build()))
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            // Aim it at the TV app first: apps installed later (a streaming app, a file manager) can claim the same
-            // channel URI too, and with two or more handlers Android shows a chooser instead of the input (WhaleOS).
             if (!liveTvPkg.isEmpty()) {
                 try {
                     startActivity(new Intent(view).setPackage(liveTvPkg));
                     return;
                 } catch (ActivityNotFoundException | SecurityException ignored) {
+                }
+            }
+            String[] tvPkgs = {"com.amazon.tv.livetv", "com.google.android.tv", "com.android.tv", "com.amazon.tv.inputpreference.service"};
+            for (String pkg : tvPkgs) {
+                try {
+                    startActivity(new Intent(view).setPackage(pkg));
+                    return;
+                } catch (Exception ignored) {
                 }
             }
             try {
@@ -2921,39 +2943,17 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         String[] amazonInputIntents = {
                 "com.amazon.tv.action.SWITCH_INPUT",
                 "android.media.tv.action.VIEW_INPUTS",
+                "com.android.tv.action.VIEW_INPUTS",
                 "amazon.intent.action.INPUTS_SETTINGS"
         };
         for (String act : amazonInputIntents) {
             try {
-                startActivity(new Intent(act).putExtra("input_id", inputId).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                startActivity(new Intent(act).putExtra("input_id", resolvedId).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
                 return;
             } catch (Exception ignored) {
             }
         }
-        String[] fireTvInputs = {
-                "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.inputs.InputsActivity",
-                "com.amazon.tv.settings/com.amazon.tv.settings.inputs.InputsActivity",
-                "com.android.tv.settings/com.android.tv.settings.inputs.InputsActivity"
-        };
-        for (String comp : fireTvInputs) {
-            ComponentName cn = ComponentName.unflattenFromString(comp);
-            if (cn != null) {
-                try {
-                    getPackageManager().getPackageInfo(cn.getPackageName(), 0);
-                    startActivity(new Intent().setComponent(cn).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-                    return;
-                } catch (Exception ignored) {
-                }
-            }
-        }
-        if (!inputAction.isEmpty()) {
-            try {
-                open(new Intent(inputAction).setDataAndType(uri, "vnd.android.cursor.item/channel"));
-                return;
-            } catch (Exception ignored) {
-            }
-        }
-        Toast.makeText(this, R.string.not_available, Toast.LENGTH_SHORT).show();
+        openFireTvInputs();
     }
 
     /** Dropdown menu under the Inputs pill: HDMI ports (with connection state), AV and Live TV. */
@@ -2968,8 +2968,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         // top_menu: the pill is gone, so the list hangs under the gear, growing inward from the right.
         // Read the switch, not the pill: show_inputs_pill=false hides the pill too, and there the list
         // keeps its usual place.
-        boolean underGear = topMenu;
+        boolean underGear = topMenu || btnInputs == null || btnInputs.getVisibility() != View.VISIBLE;
         View anchor = findViewById(underGear ? R.id.btnSettings : R.id.btnInputs);
+        if (anchor == null) anchor = findViewById(R.id.btnSettings);
+        if (anchor == null) anchor = root;
         View panel = getLayoutInflater().inflate(R.layout.popup_inputs, root, false);
         LinearLayout rows = panel.findViewById(R.id.rows);
 
@@ -2983,7 +2985,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         boolean tunerIsHw = false;
         boolean tunerIsAnalog = false;
         if (tim != null) {
-            List<TvInputInfo> inputs = new ArrayList<>(tim.getTvInputList());
+            List<TvInputInfo> inputs;
+            try {
+                inputs = new ArrayList<>(tim.getTvInputList());
+            } catch (Exception e) {
+                inputs = new ArrayList<>();
+            }
             // HDMI ports first in port order, then AV and the rest.
             Collections.sort(inputs, (a, b) -> {
                 boolean ha = a.getType() == TvInputInfo.TYPE_HDMI, hb = b.getType() == TvInputInfo.TYPE_HDMI;
@@ -3000,7 +3007,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             for (TvInputInfo info : inputs) {
                 String parent = info.getParentId();
                 if (parent == null || !inputIds.contains(parent)) continue;
-                if (!info.isPassthroughInput() || info.isHidden(this)) continue;
+                boolean hidden = false;
+                try { hidden = info.isHidden(this); } catch (Exception ignored) {}
+                if (!info.isPassthroughInput() || hidden) continue;
                 List<TvInputInfo> onPort = cecDevices.get(parent);
                 if (onPort == null) cecDevices.put(parent, onPort = new ArrayList<>());
                 onPort.add(info);
@@ -3038,7 +3047,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                     }
                 }
                 // Inputs hidden in the TV's Settings > Inputs stay out of the menu too.
-                if (!info.isPassthroughInput() || info.isHidden(this)) continue;
+                boolean hidden = false;
+                try { hidden = info.isHidden(this); } catch (Exception ignored) {}
+                if (!info.isPassthroughInput() || hidden) continue;
                 // input_sources can leave out ports the board reports but the set does not have ("HW8=-").
                 if (Integer.valueOf(-1).equals(mappedSource(info.getId()))) continue;
                 // A CEC device's row is added with its port, below.
@@ -3115,14 +3126,20 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             final Intent liveTvIntent = liveTv;
             addInputRow(rows, popup, R.drawable.ic_livetv, getString(R.string.live_tv), -1, () -> open(liveTvIntent));
         }
-        if (rows.getChildCount() == 0) {
+        if (rows.getChildCount() > 0) {
+            addSeparator(rows);
+            addInputRow(rows, popup, R.drawable.ic_input, getString(R.string.inputs), -1, () -> {
+                HomeKeyService.allowStockLauncherUntil = SystemClock.uptimeMillis() + 15000;
+                openFireTvInputs();
+            });
+        } else {
             addInputRow(rows, popup, R.drawable.ic_input, "HDMI 1", -1, () -> openInput("HDMI1"));
             addInputRow(rows, popup, R.drawable.ic_input, "HDMI 2", -1, () -> openInput("HDMI2"));
             addInputRow(rows, popup, R.drawable.ic_input, "HDMI 3", -1, () -> openInput("HDMI3"));
             addInputRow(rows, popup, R.drawable.ic_av, "AV", -1, () -> openInput("AV"));
             addSeparator(rows);
             addInputRow(rows, popup, R.drawable.ic_input, getString(R.string.inputs), -1, () -> {
-                HomeKeyService.allowStockLauncherUntil = SystemClock.uptimeMillis() + 8000;
+                HomeKeyService.allowStockLauncherUntil = SystemClock.uptimeMillis() + 15000;
                 openFireTvInputs();
             });
         }
@@ -3137,8 +3154,31 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     private void openFireTvInputs() {
+        HomeKeyService.allowStockLauncherUntil = SystemClock.uptimeMillis() + 15000;
+        String[] comps = {
+                "com.amazon.tv.inputpreference.service/com.amazon.tv.inputpreference.player.InputChooserActivity",
+                "com.amazon.tv.inputpreference.service/com.amazon.tv.inputpreference.player.InputTabActivity",
+                "com.amazon.tv.inputpreference/com.amazon.tv.inputpreference.player.InputChooserActivity",
+                "com.amazon.tv.inputpreference/com.amazon.tv.inputpreference.player.InputTabActivity",
+                "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.inputs.InputsActivity",
+                "com.amazon.tv.settings/com.amazon.tv.settings.inputs.InputsActivity",
+                "com.android.tv.settings/com.android.tv.settings.inputs.InputsActivity",
+                "com.amazon.tv.launcher/com.amazon.tv.launcher.inputs.InputsActivity"
+        };
+        for (String comp : comps) {
+            ComponentName cn = ComponentName.unflattenFromString(comp);
+            if (cn != null) {
+                try {
+                    startActivity(new Intent().setComponent(cn).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                    return;
+                } catch (Exception ignored) {
+                }
+            }
+        }
         String[] actions = {
+                "com.amazon.tv.action.INPUT_CHOOSER",
                 "android.media.tv.action.VIEW_INPUTS",
+                "com.android.tv.action.VIEW_INPUTS",
                 "amazon.intent.action.INPUTS_SETTINGS",
                 "com.amazon.tv.action.SWITCH_INPUT"
         };
@@ -3149,21 +3189,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             } catch (Exception ignored) {
             }
         }
-        String[] comps = {
-                "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.inputs.InputsActivity",
-                "com.amazon.tv.settings/com.amazon.tv.settings.inputs.InputsActivity",
-                "com.android.tv.settings/com.android.tv.settings.inputs.InputsActivity"
-        };
-        for (String comp : comps) {
-            ComponentName cn = ComponentName.unflattenFromString(comp);
-            if (cn != null) {
-                try {
-                    getPackageManager().getPackageInfo(cn.getPackageName(), 0);
-                    startActivity(new Intent().setComponent(cn).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-                    return;
-                } catch (Exception ignored) {
-                }
-            }
+        try {
+            Runtime.getRuntime().exec(new String[]{"input", "keyevent", "178"});
+        } catch (Exception ignored) {
         }
     }
 

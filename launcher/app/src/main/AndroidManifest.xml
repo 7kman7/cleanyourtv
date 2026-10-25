@@ -133,6 +133,7 @@
             android:theme="@android:style/Theme.NoDisplay">
             <intent-filter>
                 <action android:name="com.android.tv.action.VIEW_INPUTS" />
+                <action android:name="android.media.tv.action.VIEW_INPUTS" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>

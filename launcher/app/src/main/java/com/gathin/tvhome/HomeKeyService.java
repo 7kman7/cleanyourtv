@@ -213,7 +213,8 @@ public class HomeKeyService extends AccessibilityService {
         String p = pkg.toString();
 
         if (p.equals("com.apple.airplay.amazon.airplay") || p.equals("com.amazon.cast.sink")
-                || p.contains("airplay") || p.contains("phairplay") || p.contains("cast") || p.contains("mirror")) {
+                || p.contains("airplay") || p.contains("phairplay") || p.contains("cast") || p.contains("mirror")
+                || p.contains("inputpreference") || p.contains("tvinput") || p.contains("livetv")) {
             return;
         }
 
@@ -227,7 +228,10 @@ public class HomeKeyService extends AccessibilityService {
                 if (c.contains("settings") || c.contains("preferences") || c.contains("airplay")
                         || c.contains("phairplay") || c.contains("cast") || c.contains("mirror")
                         || c.contains("pin") || c.contains("code") || c.contains("passcode")
-                        || c.contains("dialog") || c.contains("prompt") || c.contains("overlay")) {
+                        || c.contains("dialog") || c.contains("prompt") || c.contains("overlay")
+                        || c.contains("input") || c.contains("source") || c.contains("hdmi")
+                        || c.contains("tuner") || c.contains("tvplayer") || c.contains("livetv")
+                        || c.contains("channel") || c.contains("switcher")) {
                     return;
                 }
             }
@@ -236,15 +240,16 @@ public class HomeKeyService extends AccessibilityService {
             if (text.contains("airplay") || desc.contains("airplay")
                     || text.contains("phairplay") || desc.contains("phairplay")
                     || text.contains("passcode") || desc.contains("passcode")
-                    || text.contains("pin") || desc.contains("pin")) {
+                    || text.contains("pin") || desc.contains("pin")
+                    || text.contains("input") || desc.contains("input")
+                    || text.contains("source") || desc.contains("source")
+                    || text.contains("hdmi") || desc.contains("hdmi")) {
                 return;
             }
             if (SystemClock.uptimeMillis() < allowStockLauncherUntil) {
                 return;
             }
             openHome();
-        } else if (!p.equals(getPackageName())) {
-            allowStockLauncherUntil = 0;
         }
     }
 

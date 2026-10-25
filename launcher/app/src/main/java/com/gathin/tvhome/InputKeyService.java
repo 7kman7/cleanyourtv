@@ -2,7 +2,9 @@ package com.gathin.tvhome;
 
 import android.accessibilityservice.AccessibilityService;
 import android.content.ActivityNotFoundException;
+import android.content.ComponentName;
 import android.content.Intent;
+import android.os.SystemClock;
 import android.view.KeyEvent;
 import android.view.accessibility.AccessibilityEvent;
 import java.util.Collections;
@@ -70,9 +72,41 @@ public class InputKeyService extends AccessibilityService {
                 holdAppKeys.get(event.getKeyCode()))) return true;
         if (!isInputKey(event.getKeyCode())) return false;
         if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
+            HomeKeyService.allowStockLauncherUntil = SystemClock.uptimeMillis() + 15000;
+            Intent show = new Intent(this, MainActivity.class)
+                    .setAction(MainActivity.ACTION_VIEW_INPUTS)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            try {
+                startActivity(show);
+                return true;
+            } catch (Exception ignored) {
+            }
             try {
                 startActivity(new Intent(ACTION_VIEW_INPUTS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-            } catch (ActivityNotFoundException ignored) {
+                return true;
+            } catch (Exception ignored) {
+            }
+            try {
+                startActivity(new Intent("android.media.tv.action.VIEW_INPUTS").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                return true;
+            } catch (Exception ignored) {
+            }
+            String[] comps = {
+                    "com.amazon.tv.inputpreference.service/com.amazon.tv.inputpreference.player.InputChooserActivity",
+                    "com.amazon.tv.inputpreference.service/com.amazon.tv.inputpreference.player.InputTabActivity",
+                    "com.amazon.tv.inputpreference/com.amazon.tv.inputpreference.player.InputChooserActivity",
+                    "com.amazon.tv.inputpreference/com.amazon.tv.inputpreference.player.InputTabActivity",
+                    "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.inputs.InputsActivity"
+            };
+            for (String comp : comps) {
+                ComponentName cn = ComponentName.unflattenFromString(comp);
+                if (cn != null) {
+                    try {
+                        startActivity(new Intent().setComponent(cn).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                        return true;
+                    } catch (Exception ignored) {
+                    }
+                }
             }
         }
         return true;
