@@ -19,7 +19,8 @@ final class SystemSettings {
         ResolveInfo resolved = pm.resolveActivity(standard, PackageManager.MATCH_DEFAULT_ONLY);
         // Fire OS resolves the standard actions to a CTS compliance stub or dummy handler that opens nothing;
         // treat it as missing so the vendor fallback runs.
-        boolean isDummy = resolved != null && (resolved.activityInfo.name.contains("Dummy")
+        boolean isDummy = resolved != null && (resolved.activityInfo.name.contains("CTSDummy")
+                || resolved.activityInfo.name.contains("Dummy")
                 || resolved.activityInfo.name.contains("CTS")
                 || resolved.activityInfo.packageName.equals("com.amazon.tv.launcher"));
         if (resolved != null && !isDummy) return standard;

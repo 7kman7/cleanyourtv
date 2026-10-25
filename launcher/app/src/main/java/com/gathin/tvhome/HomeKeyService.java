@@ -231,8 +231,8 @@ public class HomeKeyService extends AccessibilityService {
                     return;
                 }
             }
-            CharSequence text = event.getText() != null ? event.getText().toString().toLowerCase() : "";
-            CharSequence desc = event.getContentDescription() != null ? event.getContentDescription().toString().toLowerCase() : "";
+            String text = event.getText() != null ? event.getText().toString().toLowerCase() : "";
+            String desc = event.getContentDescription() != null ? event.getContentDescription().toString().toLowerCase() : "";
             if (text.contains("airplay") || desc.contains("airplay") || text.contains("passcode") || desc.contains("passcode") || text.contains("pin") || desc.contains("pin")) {
                 return;
             }
