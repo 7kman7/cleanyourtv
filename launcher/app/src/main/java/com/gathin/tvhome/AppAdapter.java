@@ -639,7 +639,6 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             return;
         }
         Holder h = (Holder) holder;
-        Entry e = items.get(position);
         if (e.kind == Entry.EMPTY) {
             // A free dock slot keeps its place in the row and the band, but shows nothing and takes no focus.
             h.card.setVisibility(View.INVISIBLE);

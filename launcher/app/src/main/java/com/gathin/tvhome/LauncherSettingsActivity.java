@@ -53,7 +53,6 @@ public final class LauncherSettingsActivity extends Activity {
     private String chosenTheme;
 
     private TextView showDockChoice;
-    private TextView recentAppsChoice;
     private TextView showAllAppsChoice;
     private TextView sectionOrderChoice;
     private TextView allAppsSortChoice;
