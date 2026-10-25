@@ -410,7 +410,7 @@
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/continueWatchingRow"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="102dp"
                 android:clipToPadding="false"
                 android:clipChildren="false"
                 android:overScrollMode="never"

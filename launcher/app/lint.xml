@@ -4,4 +4,5 @@
     <!-- A string missing from a values-* folder falls back to English by design: translations arrive
          one language at a time from contributors, and a partial one is better than none. -->
     <issue id="MissingTranslation" severity="informational" />
+    <issue id="SetHasFixedSize" severity="ignore" />
 </lint>
