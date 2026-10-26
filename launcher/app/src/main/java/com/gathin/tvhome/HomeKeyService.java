@@ -239,14 +239,30 @@ public class HomeKeyService extends AccessibilityService {
         appScancodes = RemoteKeys.parseAppScancodes(config.appKeys);
         RemoteKeys.applyKeyFilter(this, config.keyFilter);
         stockHome.clear();
-        if (!config.stockHomeRedirect.isEmpty()) {
-            Intent home = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).setPackage(config.stockHomeRedirect);
-            for (ResolveInfo ri : getPackageManager().queryIntentActivities(home, PackageManager.MATCH_DISABLED_COMPONENTS)) {
-                stockHome.add(ri.activityInfo.name);
-            }
-        }
         stockHome.add("com.amazon.tv.launcher");
         stockHome.add("com.amazon.firehomestarter");
+        stockHome.add("com.google.android.tvlauncher");
+        stockHome.add("com.google.android.apps.tv.launcherx");
+        if (!config.stockHomeRedirect.isEmpty()) {
+            stockHome.add(config.stockHomeRedirect);
+            Intent home = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).setPackage(config.stockHomeRedirect);
+            for (ResolveInfo ri : getPackageManager().queryIntentActivities(home, PackageManager.MATCH_DISABLED_COMPONENTS)) {
+                if (ri.activityInfo != null) {
+                    stockHome.add(ri.activityInfo.packageName);
+                    stockHome.add(ri.activityInfo.name);
+                }
+            }
+        }
+        try {
+            Intent anyHome = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME);
+            for (ResolveInfo ri : getPackageManager().queryIntentActivities(anyHome, PackageManager.MATCH_ALL | PackageManager.MATCH_DISABLED_COMPONENTS)) {
+                if (ri.activityInfo != null && !getPackageName().equals(ri.activityInfo.packageName)) {
+                    stockHome.add(ri.activityInfo.packageName);
+                    stockHome.add(ri.activityInfo.name);
+                }
+            }
+        } catch (Throwable ignored) {
+        }
         AccessibilityServiceInfo info = getServiceInfo();
         if (info != null) {
             info.eventTypes |= AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED;
@@ -299,24 +315,29 @@ public class HomeKeyService extends AccessibilityService {
         if (event.getKeyCode() == KeyEvent.KEYCODE_HOME) {
             allowStockLauncherUntil = 0;
             if (isOverrideEnabled()) {
-                if (event.getAction() == KeyEvent.ACTION_DOWN) {
-                    openHome();
-                } else if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
-                    openHome();
+                if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
+                    handler.removeCallbacks(openHomeRunnable);
+                    handler.post(openHomeRunnable);
+                } else if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                    handler.removeCallbacks(openHomeRunnable);
+                    handler.post(openHomeRunnable);
                 }
                 return true;
             }
             return false;
         }
-        if (event.getKeyCode() != KeyEvent.KEYCODE_ALL_APPS) return false;
-        if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
-            Intent home = new Intent(Intent.ACTION_MAIN)
-                    .addCategory(Intent.CATEGORY_HOME)
-                    .setPackage(getPackageName())
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
-            startActivity(home);
+        if (event.getKeyCode() == KeyEvent.KEYCODE_ALL_APPS) {
+            allowStockLauncherUntil = 0;
+            if (isOverrideEnabled()) {
+                if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
+                    handler.removeCallbacks(openHomeRunnable);
+                    handler.post(openHomeRunnable);
+                }
+                return true;
+            }
+            return false;
         }
-        return true;
+        return false;
     }
 
     /** Unbound by Android: the user turned the helper off, so Home doesn't put it back (ServiceRepair). */
@@ -337,16 +358,16 @@ public class HomeKeyService extends AccessibilityService {
         if (pkg == null) return;
         String p = pkg.toString();
 
+        if (p.equals(getPackageName())) return;
+
         if (p.equals("com.apple.airplay.amazon.airplay") || p.equals("com.amazon.cast.sink")
                 || p.contains("airplay") || p.contains("phairplay") || p.contains("cast") || p.contains("mirror")
-                || p.contains("inputpreference") || p.contains("tvinput") || p.contains("livetv")
-                || p.contains("devicecontrol") || p.contains("quicksettings") || p.contains("equipmentcontrol")
-                || p.contains("settings") || p.contains("inputs") || p.contains("source") || p.contains("chooser")) {
+                || p.contains("inputpreference") || p.contains("quicksettings") || p.contains("dialog")) {
             return;
         }
 
-        boolean isStock = p.equals("com.amazon.tv.launcher") || p.equals("com.amazon.firehomestarter")
-                || (!stockHome.isEmpty() && stockHome.contains(p));
+        boolean isStock = stockHome.contains(p) || p.equals("com.amazon.tv.launcher") || p.equals("com.amazon.firehomestarter")
+                || p.equals("com.google.android.tvlauncher") || p.equals("com.google.android.apps.tv.launcherx");
 
         if (isStock) {
             CharSequence cls = event.getClassName();
@@ -355,11 +376,13 @@ public class HomeKeyService extends AccessibilityService {
                 // Do not redirect if user is in stock settings, inputs popout, quick settings, or dialogs
                 if (c.contains("mainsettings") || c.contains("inputsactivity")
                         || c.contains("quicksettings") || c.contains("dialog")
-                        || c.contains("prompt") || c.contains("passcode") || c.contains("pin")) {
+                        || c.contains("prompt") || c.contains("passcode") || c.contains("pin")
+                        || c.contains("hud") || c.contains("overlay") || c.contains("popup")) {
                     return;
                 }
             }
-            openHome();
+            handler.removeCallbacks(openHomeRunnable);
+            handler.post(openHomeRunnable);
         }
     }
 
@@ -393,6 +416,7 @@ public class HomeKeyService extends AccessibilityService {
     /** Lets the system see the key, so a long press still does what the firmware gives it. */
     private static final long HOME_KEY_DELAY_MS = 250;
     private final Handler handler = new Handler(Looper.getMainLooper());
+    private final Runnable openHomeRunnable = this::openHome;
 
     /** stock_home_redirect on the Home key: when the stock home is already on screen (it came up at boot, before
      *  Android bound this service), Home brings it up again with no window change, so the redirect above never
@@ -411,6 +435,7 @@ public class HomeKeyService extends AccessibilityService {
     }
 
     private void openHome() {
+        allowStockLauncherUntil = 0;
         Intent home = new Intent(this, MainActivity.class)
                 .addCategory(Intent.CATEGORY_HOME)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK

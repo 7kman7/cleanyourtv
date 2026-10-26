@@ -384,46 +384,39 @@ final class SystemSettings {
         // 1. Explicit component candidates for the Inputs section in native settings / side popout menu
         String[] settingsInputsComponents = {
                 // Fire TV native input chooser / side popout menu
-                "com.amazon.tv.inputpreference/com.amazon.tv.inputpreference.inputtab.InputTabActivity",
-                "com.amazon.tv.inputpreference.service/com.amazon.tv.inputpreference.inputtab.InputTabActivity",
                 "com.amazon.tv.inputpreference/com.amazon.tv.inputpreference.player.InputChooserActivity",
                 "com.amazon.tv.inputpreference.service/com.amazon.tv.inputpreference.player.InputChooserActivity",
-                "com.amazon.tv.inputpreference/com.amazon.tv.inputpreference.player.InputTabActivity",
-                "com.amazon.tv.inputpreference.service/com.amazon.tv.inputpreference.player.InputTabActivity",
-                "com.amazon.tv.launcher/com.amazon.tv.launcher.inputs.InputsActivity",
-                "com.amazon.tv.launcher/com.amazon.tv.launcher.ui.InputsActivity",
+                "com.amazon.tv.inputpreference/com.amazon.tv.inputpreference.inputtab.InputTabActivity",
+                "com.amazon.tv.inputpreference.service/com.amazon.tv.inputpreference.inputtab.InputTabActivity",
 
-                // Fire TV Settings - Inputs section / side popout menu
-                "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.inputs.InputsActivity",
-                "com.amazon.tv.settings.v2/.inputs.InputsActivity",
+                // Fire TV HUD / Quick Settings side popout overlay
+                "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.hud.HudActivity",
+                "com.amazon.tv.settings.v2/.hud.HudActivity",
+                "com.amazon.tv.settings/com.amazon.tv.settings.hud.HudActivity",
+                "com.amazon.tv.settings/.hud.HudActivity",
+
+                // Fire TV Settings - Inputs section
                 "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.tv.inputs.InputsActivity",
                 "com.amazon.tv.settings.v2/.tv.inputs.InputsActivity",
-                "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.tv.inputs.InputActivity",
-                "com.amazon.tv.settings.v2/.tv.inputs.InputActivity",
-                "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.inputs.InputActivity",
-                "com.amazon.tv.settings.v2/.inputs.InputActivity",
-                "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.tv.system.InputsActivity",
-                "com.amazon.tv.settings.v2/.tv.system.InputsActivity",
                 "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.tv.inputs.TvInputsActivity",
                 "com.amazon.tv.settings.v2/.tv.inputs.TvInputsActivity",
+                "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.tv.inputs.InputActivity",
+                "com.amazon.tv.settings.v2/.tv.inputs.InputActivity",
                 "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.tv.sources.SourcesActivity",
                 "com.amazon.tv.settings.v2/.tv.sources.SourcesActivity",
                 "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.tv.sources.SourceActivity",
                 "com.amazon.tv.settings.v2/.tv.sources.SourceActivity",
-                "com.amazon.tv.settings/com.amazon.tv.settings.inputs.InputsActivity",
-                "com.amazon.tv.settings/.inputs.InputsActivity",
+                "com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.inputs.InputsActivity",
+                "com.amazon.tv.settings.v2/.inputs.InputsActivity",
                 "com.amazon.tv.settings/com.amazon.tv.settings.tv.inputs.InputsActivity",
                 "com.amazon.tv.settings/.tv.inputs.InputsActivity",
-                "com.amazon.tv.settings/com.amazon.tv.settings.tv.system.InputsActivity",
-                "com.amazon.tv.settings/.tv.system.InputsActivity",
-                "com.amazon.tv.settings/com.amazon.tv.settings.tv.InputsActivity",
-                "com.amazon.tv.settings/.tv.InputsActivity",
-                "com.amazon.tv.settings/com.amazon.tv.settings.tv.source.SourceActivity",
-                "com.amazon.tv.settings/.tv.source.SourceActivity",
+                "com.amazon.tv.settings/com.amazon.tv.settings.inputs.InputsActivity",
+                "com.amazon.tv.settings/.inputs.InputsActivity",
 
                 // AOSP & Google TV Settings - Inputs / side popout panel
                 "com.google.android.tvlauncher/com.google.android.tvlauncher.inputs.InputsPanelActivity",
                 "com.google.android.tvlauncher/.inputs.InputsPanelActivity",
+                "com.google.android.tv.frameworkpackagestubs/com.google.android.tv.frameworkpackagestubs.InputActivity",
                 "com.mediatek.wwtv.tvcenter/com.mediatek.wwtv.tvcenter.nav.inputpanel.InputsPanelActivity",
                 "com.android.tv.settings/com.android.tv.settings.system.InputsActivity",
                 "com.android.tv.settings/.system.InputsActivity",
@@ -431,7 +424,6 @@ final class SystemSettings {
                 "com.android.tv.settings/.inputs.InputsActivity",
                 "com.android.tv.settings/com.android.tv.settings.system.InputsSettingsActivity",
                 "com.android.tv.settings/.system.InputsSettingsActivity",
-                "com.google.android.tv.frameworkpackagestubs/com.google.android.tv.frameworkpackagestubs.InputActivity",
 
                 // Sony BRAVIA TV Settings - Inputs
                 "com.sony.dtv.settings/com.sony.dtv.settings.inputs.InputsActivity",
@@ -476,7 +468,7 @@ final class SystemSettings {
                 intent.putExtra(":settings:show_fragment", "com.android.tv.settings.system.InputsFragment");
                 intent.putExtra(":settings:show_fragment", "com.amazon.tv.settings.v2.inputs.InputsFragment");
                 if (intent.getComponent() != null && "com.amazon.tv.launcher".equals(intent.getComponent().getPackageName())) {
-                    HomeKeyService.allowStockLauncherUntil = android.os.SystemClock.uptimeMillis() + 60000;
+                    HomeKeyService.allowStockLauncherUntil = android.os.SystemClock.uptimeMillis() + 4000;
                 }
                 context.startActivity(intent);
                 return true;
@@ -484,18 +476,17 @@ final class SystemSettings {
             }
         }
 
-        // 2. Standard and vendor intent actions for Inputs Settings (Equipment Control strictly excluded)
+        // 2. Standard and vendor intent actions for Inputs Settings (Equipment Control and Live TV strictly excluded)
         String[] actions = {
                 "android.settings.TV_INPUT_SETTINGS",
                 "com.amazon.tv.action.INPUT_CHOOSER",
                 "com.amazon.tv.action.SWITCH_INPUT",
-                "com.android.tv.action.VIEW_INPUTS",
-                "android.media.tv.action.VIEW_INPUTS",
                 "com.amazon.tv.settings.INPUTS_SETTINGS",
                 "com.amazon.tv.settings.action.INPUTS",
                 "com.android.tv.settings.action.INPUTS",
                 "com.android.tv.settings.action.SYSTEM_INPUTS",
-                "android.settings.INPUT_SETTINGS"
+                "android.settings.INPUT_SETTINGS",
+                "com.android.tv.action.VIEW_INPUTS"
         };
         for (String act : actions) {
             try {
@@ -504,7 +495,11 @@ final class SystemSettings {
                 if (receivers != null) {
                     for (ResolveInfo ri : receivers) {
                         if (ri.activityInfo != null && !context.getPackageName().equals(ri.activityInfo.packageName)) {
-                            if (isEquipmentControl(ri.activityInfo.packageName) || isEquipmentControl(ri.activityInfo.name)) {
+                            String pkgLower = ri.activityInfo.packageName.toLowerCase(java.util.Locale.ROOT);
+                            String clsLower = ri.activityInfo.name.toLowerCase(java.util.Locale.ROOT);
+                            if (isEquipmentControl(pkgLower) || isEquipmentControl(clsLower)
+                                    || pkgLower.contains("livetv") || clsLower.contains("livetv")
+                                    || pkgLower.contains("tuner") || clsLower.contains("tuner")) {
                                 continue;
                             }
                             intent.setComponent(new ComponentName(ri.activityInfo.packageName, ri.activityInfo.name));
@@ -513,7 +508,7 @@ final class SystemSettings {
                             intent.putExtra("setting_type", "inputs");
                             intent.putExtra(":settings:show_fragment", "com.android.tv.settings.system.InputsFragment");
                             if ("com.amazon.tv.launcher".equals(ri.activityInfo.packageName)) {
-                                HomeKeyService.allowStockLauncherUntil = android.os.SystemClock.uptimeMillis() + 60000;
+                                HomeKeyService.allowStockLauncherUntil = android.os.SystemClock.uptimeMillis() + 4000;
                             }
                             context.startActivity(intent);
                             return true;
@@ -522,39 +517,6 @@ final class SystemSettings {
                 }
             } catch (Exception ignored) {
             }
-        }
-
-        // 3. Fallback to native settings menu with inputs category/fragment extras
-        Intent vendorSettings = vendorIntent(context);
-        if (vendorSettings != null) {
-            try {
-                vendorSettings.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                vendorSettings.putExtra("category", "inputs");
-                vendorSettings.putExtra("category_name", "inputs");
-                vendorSettings.putExtra("setting_type", "inputs");
-                vendorSettings.putExtra(":settings:show_fragment", "com.android.tv.settings.system.InputsFragment");
-                if (vendorSettings.getComponent() != null && "com.amazon.tv.launcher".equals(vendorSettings.getComponent().getPackageName())) {
-                    HomeKeyService.allowStockLauncherUntil = android.os.SystemClock.uptimeMillis() + 60000;
-                }
-                context.startActivity(vendorSettings);
-                return true;
-            } catch (Exception ignored) {
-            }
-        }
-
-        try {
-            Intent mainSettings = intent(context, Settings.ACTION_SETTINGS);
-            mainSettings.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            mainSettings.putExtra("category", "inputs");
-            mainSettings.putExtra("category_name", "inputs");
-            mainSettings.putExtra("setting_type", "inputs");
-            mainSettings.putExtra(":settings:show_fragment", "com.android.tv.settings.system.InputsFragment");
-            if (mainSettings.getComponent() != null && "com.amazon.tv.launcher".equals(mainSettings.getComponent().getPackageName())) {
-                HomeKeyService.allowStockLauncherUntil = android.os.SystemClock.uptimeMillis() + 60000;
-            }
-            context.startActivity(mainSettings);
-            return true;
-        } catch (Exception ignored) {
         }
 
         return false;

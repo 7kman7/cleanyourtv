@@ -74,7 +74,7 @@ public class InputKeyService extends AccessibilityService {
                 holdAppKeys.get(event.getKeyCode()))) return true;
         if (!isInputKey(event.getKeyCode())) return false;
         if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
-            HomeKeyService.allowStockLauncherUntil = SystemClock.uptimeMillis() + 60000;
+            HomeKeyService.allowStockLauncherUntil = SystemClock.uptimeMillis() + 4000;
             if (SystemSettings.launchInputsSettings(this)) {
                 return true;
             }

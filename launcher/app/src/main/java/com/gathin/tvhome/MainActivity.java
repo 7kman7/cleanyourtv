@@ -379,7 +379,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         appLibrarySelection = cfg.appLibrarySelection;
         // restore_key_services: after a force stop, put back the remote's accessibility helpers that Android took
         // off the list (needs WRITE_SECURE_SETTINGS, granted by build-and-install with RESTORE_KEY_SERVICES=1).
-        if (cfg.restoreKeyServices) ServiceRepair.restore(this);
+        if (cfg.restoreKeyServices) {
+            ServiceRepair.connected(this, HomeKeyService.class);
+            ServiceRepair.connected(this, InputKeyService.class);
+            ServiceRepair.restore(this);
+        }
         settingsRevision = settingsRevision();
         applyViewInputsHandler(cfg.handleViewInputs);
         settingsKeycodes = cfg.settingsKeycodes;
@@ -890,6 +894,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (openLauncherSettingsIfAsked(intent)) return;
         if (openInputsIfAsked(intent)) return;
         if (intent == null || !intent.hasCategory(Intent.CATEGORY_HOME)) return;
+        if (openPopup != null) {
+            try {
+                openPopup.dismiss();
+            } catch (Exception ignored) {
+            }
+            openPopup = null;
+        }
         grid.scrollToPosition(0);
         lastFocused = 0;
         lastFocusedKey = adapter.getItemCount() > 0 ? adapter.keyAt(0) : null;
@@ -3168,12 +3179,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     /**
-     * Opens the inputs section of the native settings menu on the TV.
+     * Opens the inputs section of the native settings menu on the TV (or side popout menu).
      */
     private boolean openNativeInputs() {
-        HomeKeyService.allowStockLauncherUntil = SystemClock.uptimeMillis() + 60000;
+        HomeKeyService.allowStockLauncherUntil = SystemClock.uptimeMillis() + 4000;
 
-        // 1. Direct priority: Target the Inputs section of native settings / side popout menu
+        // 1. Direct priority: Target explicit Inputs settings activities / side popout menu
         if (SystemSettings.launchInputsSettings(this)) {
             return true;
         }
@@ -3184,50 +3195,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             return true;
         }
 
-        // 3. Accessibility Quick Settings overlay fallback
+        // 3. Accessibility Quick Settings overlay fallback (native side popout HUD menu on Fire TV / Google TV)
         if (HomeKeyService.openQuickSettings()) {
             return true;
         }
-
-        // 4. Asynchronous key injection and shell activity launch in background thread (never blocking UI thread!)
-        new Thread(() -> {
-            try {
-                Runtime.getRuntime().exec(new String[]{"input", "keyevent", "178"});
-            } catch (Throwable ignored) {
-            }
-            try {
-                Runtime.getRuntime().exec(new String[]{"su", "-c", "input keyevent 178"});
-            } catch (Throwable ignored) {
-            }
-            try {
-                Runtime.getRuntime().exec(new String[]{"su", "-c", "am start -n com.amazon.tv.inputpreference/com.amazon.tv.inputpreference.inputtab.InputTabActivity"});
-            } catch (Throwable ignored) {
-            }
-            try {
-                Runtime.getRuntime().exec(new String[]{"su", "-c", "am start -n com.amazon.tv.inputpreference.service/com.amazon.tv.inputpreference.inputtab.InputTabActivity"});
-            } catch (Throwable ignored) {
-            }
-            try {
-                Runtime.getRuntime().exec(new String[]{"su", "-c", "am start -n com.amazon.tv.inputpreference/com.amazon.tv.inputpreference.player.InputChooserActivity"});
-            } catch (Throwable ignored) {
-            }
-            try {
-                Runtime.getRuntime().exec(new String[]{"su", "-c", "am start -n com.amazon.tv.inputpreference.service/com.amazon.tv.inputpreference.player.InputChooserActivity"});
-            } catch (Throwable ignored) {
-            }
-            try {
-                Runtime.getRuntime().exec(new String[]{"su", "-c", "am start -n com.amazon.tv.launcher/com.amazon.tv.launcher.inputs.InputsActivity"});
-            } catch (Throwable ignored) {
-            }
-            try {
-                Runtime.getRuntime().exec(new String[]{"su", "-c", "am start -n com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.inputs.InputsActivity"});
-            } catch (Throwable ignored) {
-            }
-            try {
-                Runtime.getRuntime().exec(new String[]{"su", "-c", "am start -n com.amazon.tv.settings.v2/com.amazon.tv.settings.v2.tv.inputs.InputsActivity"});
-            } catch (Throwable ignored) {
-            }
-        }).start();
 
         return false;
     }
