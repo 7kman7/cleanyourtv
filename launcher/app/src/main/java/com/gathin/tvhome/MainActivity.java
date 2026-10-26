@@ -1165,6 +1165,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         handler.removeCallbacks(clockCheck);
         stopped = true;
         tileRefresh.onStop();
+        if (wallpaperPlayer != null) {
+            wallpaperPlayer.releaseForMemoryPressure();
+        }
+        if (grid != null) {
+            grid.getRecycledViewPool().clear();
+        }
     }
 
     /**

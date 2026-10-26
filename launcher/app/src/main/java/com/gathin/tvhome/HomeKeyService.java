@@ -2,18 +2,25 @@ package com.gathin.tvhome;
 
 import android.accessibilityservice.AccessibilityService;
 import android.accessibilityservice.AccessibilityServiceInfo;
+import android.app.AlarmManager;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.ActivityNotFoundException;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
+import android.content.pm.ServiceInfo;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
 import android.os.UserManager;
-import android.content.pm.PackageManager;
-import android.content.pm.ResolveInfo;
 import android.provider.Settings;
 import android.view.KeyEvent;
 import android.view.ViewConfiguration;
@@ -22,6 +29,7 @@ import android.widget.Toast;
 
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -67,10 +75,28 @@ public class HomeKeyService extends AccessibilityService {
     /** Stops key filtering while a game controller is connected; null unless gamepad_passthrough and key_filter, or before the unlock. */
     private GamepadPassthrough gamepads;
 
+    private BroadcastReceiver screenReceiver;
+
     @Override
     protected void onServiceConnected() {
         super.onServiceConnected();
         instance = this;
+        startKeepAlive();
+        registerScreenReceiver();
+        scheduleKeepAlive();
+
+        // Whitelist app from Doze and standby in background
+        new Thread(() -> {
+            try {
+                Runtime.getRuntime().exec(new String[]{"dumpsys", "deviceidle", "whitelist", "+" + getPackageName()});
+            } catch (Throwable ignored) {
+            }
+            try {
+                Runtime.getRuntime().exec(new String[]{"su", "-c", "dumpsys deviceidle whitelist +" + getPackageName()});
+            } catch (Throwable ignored) {
+            }
+        }).start();
+
         settingsScancodes = getResources().getIntArray(R.array.settings_key_scancodes);
         // The service is directBootAware: Android 11 skips a service that is not while the user is still
         // locked at boot, writes accessibility_enabled=0 and, on TCL G03 firmware, never binds it after the
@@ -95,6 +121,76 @@ public class HomeKeyService extends AccessibilityService {
         }
     }
 
+    private void startKeepAlive() {
+        try {
+            String channelId = "home_key_service_channel";
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                NotificationChannel channel = new NotificationChannel(
+                        channelId,
+                        "Home Key Service",
+                        NotificationManager.IMPORTANCE_MIN
+                );
+                channel.setDescription("Keeps Home key listener active in background");
+                channel.setShowBadge(false);
+                channel.setSound(null, null);
+                NotificationManager nm = getSystemService(NotificationManager.class);
+                if (nm != null) {
+                    nm.createNotificationChannel(channel);
+                }
+            }
+
+            Notification.Builder builder;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                builder = new Notification.Builder(this, channelId);
+            } else {
+                builder = new Notification.Builder(this);
+            }
+            Notification notification = builder
+                    .setContentTitle("CleanYourTV")
+                    .setContentText("Home listener active")
+                    .setSmallIcon(R.mipmap.ic_launcher)
+                    .setPriority(Notification.PRIORITY_MIN)
+                    .build();
+
+            if (Build.VERSION.SDK_INT >= 34) {
+                startForeground(1001, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
+            } else {
+                startForeground(1001, notification);
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private void registerScreenReceiver() {
+        if (screenReceiver != null) return;
+        screenReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                allowStockLauncherUntil = 0;
+                startKeepAlive();
+            }
+        };
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(Intent.ACTION_SCREEN_ON);
+        filter.addAction(Intent.ACTION_USER_PRESENT);
+        registerReceiver(screenReceiver, filter);
+    }
+
+    private void scheduleKeepAlive() {
+        try {
+            AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+            Intent intent = new Intent(this, KeepAliveReceiver.class);
+            PendingIntent pi = PendingIntent.getBroadcast(this, 0, intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_IMMUTABLE : 0));
+            if (am != null) {
+                am.setInexactRepeating(AlarmManager.ELAPSED_REALTIME,
+                        SystemClock.elapsedRealtime() + 15 * 60 * 1000L,
+                        15 * 60 * 1000L, pi);
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
     private void stopWaitingForUnlock() {
         if (unlockReceiver == null) return;
         unregisterReceiver(unlockReceiver);
@@ -107,6 +203,13 @@ public class HomeKeyService extends AccessibilityService {
         stopWaitingForUnlock();
         if (gamepads != null) gamepads.stop();
         if (consumeVolumeKeys) VolumeKeys.stop();
+        if (screenReceiver != null) {
+            try {
+                unregisterReceiver(screenReceiver);
+            } catch (Exception ignored) {
+            }
+            screenReceiver = null;
+        }
         super.onDestroy();
     }
 
@@ -198,6 +301,8 @@ public class HomeKeyService extends AccessibilityService {
             if (isOverrideEnabled()) {
                 if (event.getAction() == KeyEvent.ACTION_DOWN) {
                     openHome();
+                } else if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
+                    openHome();
                 }
                 return true;
             }
@@ -246,37 +351,13 @@ public class HomeKeyService extends AccessibilityService {
         if (isStock) {
             CharSequence cls = event.getClassName();
             if (cls != null) {
-                String c = cls.toString().toLowerCase();
-                if (c.contains("settings") || c.contains("preferences") || c.contains("airplay")
-                        || c.contains("phairplay") || c.contains("cast") || c.contains("mirror")
-                        || c.contains("pin") || c.contains("code") || c.contains("passcode")
-                        || c.contains("dialog") || c.contains("prompt") || c.contains("overlay")
-                        || c.contains("input") || c.contains("source") || c.contains("hdmi")
-                        || c.contains("tuner") || c.contains("tvplayer") || c.contains("livetv")
-                        || c.contains("channel") || c.contains("switcher")
-                        || c.contains("quick") || c.contains("sidebar") || c.contains("panel")
-                        || c.contains("sidepanel") || c.contains("chooser") || c.contains("player")
-                        || c.contains("surface") || c.contains("view") || c.contains("widget")
-                        || c.contains("window") || c.contains("menu") || c.contains("bar")
-                        || c.contains("device") || c.contains("control") || c.contains("systemui")
-                        || c.contains("scrim") || c.contains("popup")) {
+                String c = cls.toString().toLowerCase(Locale.ROOT);
+                // Do not redirect if user is in stock settings, inputs popout, quick settings, or dialogs
+                if (c.contains("mainsettings") || c.contains("inputsactivity")
+                        || c.contains("quicksettings") || c.contains("dialog")
+                        || c.contains("prompt") || c.contains("passcode") || c.contains("pin")) {
                     return;
                 }
-            }
-            String text = event.getText() != null ? event.getText().toString().toLowerCase() : "";
-            String desc = event.getContentDescription() != null ? event.getContentDescription().toString().toLowerCase() : "";
-            if (text.contains("airplay") || desc.contains("airplay")
-                    || text.contains("phairplay") || desc.contains("phairplay")
-                    || text.contains("passcode") || desc.contains("passcode")
-                    || text.contains("pin") || desc.contains("pin")
-                    || text.contains("input") || desc.contains("input")
-                    || text.contains("source") || desc.contains("source")
-                    || text.contains("hdmi") || desc.contains("hdmi")
-                    || text.contains("quick") || desc.contains("quick")
-                    || text.contains("settings") || desc.contains("settings")
-                    || text.contains("sleep") || desc.contains("sleep")
-                    || text.contains("screen") || desc.contains("screen")) {
-                return;
             }
             openHome();
         }
@@ -331,8 +412,24 @@ public class HomeKeyService extends AccessibilityService {
 
     private void openHome() {
         Intent home = new Intent(this, MainActivity.class)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_NO_ANIMATION);
-        startActivity(home);
+                .addCategory(Intent.CATEGORY_HOME)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                        | Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        | Intent.FLAG_ACTIVITY_SINGLE_TOP
+                        | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
+                        | Intent.FLAG_ACTIVITY_NO_ANIMATION);
+        try {
+            startActivity(home);
+        } catch (Exception e) {
+            try {
+                Intent fallback = new Intent(Intent.ACTION_MAIN)
+                        .addCategory(Intent.CATEGORY_HOME)
+                        .setPackage(getPackageName())
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
+                startActivity(fallback);
+            } catch (Exception ignored) {
+            }
+        }
     }
 
     @Override
